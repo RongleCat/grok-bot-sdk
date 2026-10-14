@@ -1,0 +1,61 @@
+{
+  "name": "grok-bot-sdk",
+  "version": "0.1.0",
+  "description": "Unofficial Node.js SDK for the Grok Bot 0.70.2 desktop client protocol: login, roster, avatars, send, and Connect-to-SSE replies.",
+  "license": "MIT",
+  "type": "module",
+  "author": "RongleCat (铁柱AGI)",
+  "homepage": "https://ronglecat.github.io/grok-bot-sdk/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RongleCat/grok-bot-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RongleCat/grok-bot-sdk/issues"
+  },
+  "keywords": [
+    "grok",
+    "grok-bot",
+    "sdk"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "bin": {
+    "grok-bot-sdk": "./bin/grok-bot-sdk.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./sdk.d.mts",
+      "import": "./sdk.mjs"
+    },
+    "./avatar": {
+      "types": "./avatar.d.mts",
+      "import": "./avatar.mjs"
+    },
+    "./desktop": {
+      "types": "./desktop.d.mts",
+      "import": "./desktop.mjs"
+    }
+  },
+  "types": "./sdk.d.mts",
+  "files": [
+    "*.mjs",
+    "*.d.mts",
+    "bin",
+    "README.md",
+    "README_ZH.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitepress": "^1.6.4"
+  }
+}

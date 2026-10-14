@@ -1,0 +1,9 @@
+node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+*.tsbuildinfo
+.DS_Store
+credentials.json
+*.token
+.env
+.env.*

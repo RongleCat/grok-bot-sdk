@@ -1,0 +1,68 @@
+{
+  "source": "Independent Python uint32 and UTF-16 implementation of statically inspected Grok Bot 0.70.2 algorithm; official bundle not executed",
+  "vectors": [
+    {
+      "key": "a",
+      "hash": 3826002220,
+      "shapeHash": 296871444,
+      "shapeIndex": 4,
+      "colorIndex": 6,
+      "shape": "wedge",
+      "color": "blue"
+    },
+    {
+      "key": "abc",
+      "hash": 440920331,
+      "shapeHash": 3964394765,
+      "shapeIndex": 5,
+      "colorIndex": 5,
+      "shape": "hex",
+      "color": "cyan"
+    },
+    {
+      "key": "33cf1aae-3a51-452d-b761-34a6ccb62201",
+      "hash": 287548938,
+      "shapeHash": 4017622118,
+      "shapeIndex": 6,
+      "colorIndex": 0,
+      "shape": "cloud",
+      "color": "brown"
+    },
+    {
+      "key": "11635495",
+      "hash": 3508584679,
+      "shapeHash": 3984038439,
+      "shapeIndex": 7,
+      "colorIndex": 0,
+      "shape": "teardrop",
+      "color": "brown"
+    },
+    {
+      "key": "00000000-0000-4000-8000-000000000000",
+      "hash": 3497017141,
+      "shapeHash": 1015285340,
+      "shapeIndex": 4,
+      "colorIndex": 2,
+      "shape": "wedge",
+      "color": "orange"
+    },
+    {
+      "key": "33CF1AAE-3A51-452D-B761-34A6CCB62201",
+      "hash": 929611402,
+      "shapeHash": 2972766651,
+      "shapeIndex": 3,
+      "colorIndex": 1,
+      "shape": "tablet",
+      "color": "red"
+    },
+    {
+      "key": "机器人🤖",
+      "hash": 4030563871,
+      "shapeHash": 1364923239,
+      "shapeIndex": 7,
+      "colorIndex": 1,
+      "shape": "teardrop",
+      "color": "red"
+    }
+  ]
+}
