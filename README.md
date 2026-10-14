@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="assets/logo.png" alt="Grok App mark used by the author" width="128" height="128" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/avatars-row-dark.png" />
+    <img src="assets/avatars-row.png" alt="Five Grok Bot avatars. The default black circle is in the middle, with an orange cloud and a violet teardrop on the left, and a green hexagon and a blue squircle on the right." width="680" height="128" />
+  </picture>
 </p>
 
 <h1 align="center">grok-bot-sdk</h1>
@@ -204,6 +207,6 @@ npm run docs:dev
 | Paid community | Add the author's WeChat with the right code, then ask to join |
 | Learning site | [bot.tiezhu.si](https://bot.tiezhu.si/) |
 
-The mark at the top is the author's Grok App mark. It is not an xAI logo.
+The avatars at the top are the Grok Bot shapes and colors, with the default black circle in the middle. They are not an xAI logo.
 
 MIT License. Copyright 2026 RongleCat.

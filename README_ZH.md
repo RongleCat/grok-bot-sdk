@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="assets/logo.png" alt="作者的 Grok App 标识" width="128" height="128" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/avatars-row-dark.png" />
+    <img src="assets/avatars-row.png" alt="一排五个 Grok Bot 头像。中间是默认的黑色圆形，左边是橙色云朵和紫色水滴，右边是绿色六边形和蓝色圆角方块。" width="680" height="128" />
+  </picture>
 </p>
 
 <h1 align="center">grok-bot-sdk</h1>
@@ -204,6 +207,6 @@ npm run docs:dev
 | 付费交流群 | 扫描上方右侧二维码添加作者微信，再说明要入群 |
 | 学习站 | [bot.tiezhu.si](https://bot.tiezhu.si/) |
 
-页顶标识是作者的 Grok App 标识，不是 xAI 的标志。
+页顶是一排 Grok Bot 头像，中间是默认的黑色圆形，左右是另外四种形状和颜色。这不是 xAI 的标志。
 
 MIT License。Copyright 2026 RongleCat。
