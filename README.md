@@ -194,7 +194,6 @@ npm run docs:dev
 | Project | What it is |
 |---|---|
 | [Grok App](https://github.com/RongleCat/grok-app) | Open-source desktop workbench for the local Grok Build CLI. [grok-app.com](https://grok-app.com) |
-| [GrokGo](https://github.com/RongleCat/grok-go) | Sister project |
 | [awesome-grok-bot](https://github.com/RongleCat/awesome-grok-bot) | Grok Bot community index |
 | [Grok Bot learning site](https://bot.tiezhu.si/) | From zero to a bot team: install, routines, cases, usage |
 

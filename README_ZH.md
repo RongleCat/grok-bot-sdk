@@ -194,7 +194,6 @@ npm run docs:dev
 | 项目 | 是什么 |
 |---|---|
 | [Grok App](https://github.com/RongleCat/grok-app) | 本机 Grok Build CLI 的开源桌面工作台。[grok-app.com](https://grok-app.com) |
-| [GrokGo](https://github.com/RongleCat/grok-go) | 姐妹项目 |
 | [awesome-grok-bot](https://github.com/RongleCat/awesome-grok-bot) | Grok Bot 社区索引 |
 | [Grok Bot 学习站](https://bot.tiezhu.si/) | 从装好客户端到带一支 Bot 团队：安装、例程、案例、额度 |
 
