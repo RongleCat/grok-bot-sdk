@@ -54,7 +54,8 @@ export default defineConfig({
   lang: 'en-US',
   lastUpdated: false,
   head: [
-    ['link', { rel: 'icon', href: '/grok-bot-sdk/logo.png' }],
+    ['link', { rel: 'icon', href: '/grok-bot-sdk/favicon.png' }],
+    ['link', { rel: 'icon', href: '/grok-bot-sdk/favicon-dark.png', media: '(prefers-color-scheme: dark)' }],
     ['meta', { name: 'theme-color', content: '#111111' }],
   ],
   locales: {

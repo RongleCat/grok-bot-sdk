@@ -1,0 +1,44 @@
+.home-avatars {
+  width: min(100%, 680px);
+  margin: 0 auto 28px;
+}
+
+.home-avatars img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+html:not(.dark) .home-avatars-dark {
+  display: none;
+}
+
+.dark .home-avatars-light {
+  display: none;
+}
+
+.VPHome .VPHero .container {
+  align-items: center;
+}
+
+.VPHome .VPHero .main {
+  width: min(100%, 760px);
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.VPHome .VPHero .heading,
+.VPHome .VPHero .actions {
+  align-items: center;
+  justify-content: center;
+}
+
+.VPHome .VPHero .name,
+.VPHome .VPHero .text,
+.VPHome .VPHero .tagline {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}

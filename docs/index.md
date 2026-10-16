@@ -5,9 +5,6 @@ hero:
   name: grok-bot-sdk
   text: Grok Bot client protocol, in Node.js
   tagline: Browser login, the bot roster, normalized avatars, send, and Connect replies forwarded as SSE. Matched to Grok Bot 0.70.2. Unofficial.
-  image:
-    src: /logo.png
-    alt: Author's Grok App mark
   actions:
     - theme: brand
       text: Authorize
