@@ -23,7 +23,7 @@ class SDKError extends Error {
 | `BOT_ID_REQUIRED` | `botId` 为空、长于 128，或超出 `[A-Za-z0-9_-]`。 |
 | `MESSAGE_INVALID` | 文本、会话、消息 ID 或附件数组没有通过校验。 |
 | `SEND_UNCONFIRMED` | 发送的 HTTP 调用失败。不要自动再发一次。 |
-| `SEND_REFUSED` | HTTP 成功，但 `delivery` 不是已知的接受结果。 |
+| `SEND_REFUSED` | HTTP 成功，但 `delivery` 不是已知的接受结果。整数 `4` 和 `GROK_BOT_USER_MESSAGE_DELIVERY_REFUSED` 属于这种情况。 |
 | `CURSOR_INVALID` | 游标字段、恢复编码，或两种游标形式同时使用。 |
 | `CURSOR_SCOPE_MISMATCH` | `resumeFrom` 指向另一个 Bot 或会话。 |
 | `STREAM_CONNECTION_FAILED` | 订阅 HTTP 失败，或在有类型的流错误之前套接字失败。 |
@@ -54,6 +54,7 @@ data: {"code":"STREAM_RPC_ERROR"}
 |---|---|
 | `LOGIN_POLL_FAILED` | 连续三次轮询既不是成功也不是 HTTP 404。 |
 | `LOGIN_TIMED_OUT` | 登录仍在等待时，`maxAttempts` 已经用完。 |
+| `SIGN_IN_POLICY_VIOLATION` | 轮询返回 HTTP 403 `{ "error": "sign_in_policy_violation" }`。轮询停止。 |
 | `CREDENTIAL_DECRYPT_FAILED` | 数据不是这段代码能打开的 `v10` 密钥。 |
 | `ACCOUNT_STORE_INVALID` | `cursor-accounts` 不是 JSON。 |
 | `NO_ACTIVE_ACCOUNT` | 存储里没有可用的 `active` 账号。 |

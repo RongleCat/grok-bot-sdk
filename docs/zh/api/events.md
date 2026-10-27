@@ -15,8 +15,12 @@
 | `reset` | 代际变化，或会话被清空 | 丢掉这个会话的本地状态。`data.generation` 是新的代际。 |
 | `resync-required` | 游标比服务端允许的更旧 | 生成器在这个事件之后返回。重新加载历史，再订阅。 |
 | `turn.failed` | Bot 回合失败 | 读取 `turnId`、`code` 和 `summary`。 |
-| `bot.state.changed` | 这个 Bot 的状态族变了 | 读取 `families`。 |
+| `bot.state.changed` | 这个 Bot 的状态族变了 | 读取 `families` 和 `changedAtMs`。 |
 | `bot.updated` | 这个 Bot 的名单字段变了 | `data.bot` 是 `Bot`；载荷里没有 agent 对象时为 `null`。 |
+| `agent.state` | 这个 Bot 和会话的 live 或 client 快照 | 读取 `snapshot`、`live` 和 `client`。另一个 Bot 的行会被丢掉。 |
+| `computer.actions` | 这个 Bot 的电脑操作 | 读取 `actions`。另一个 Bot 的操作会被丢掉。 |
+| `box.state` | 这次订阅收到了账号沙箱状态 | 读取 `snapshot` 和 `state`。这一帧没有 agent id。 |
+| `page.title.changed` | 这次订阅里画布或文档标题变了 | 读取 `storeId`、`canvasId` 或 `documentId`、`title` 和 `changedAtMs`。 |
 | `stream.closed` | 仅 SSE。迭代器正常结束。 | 订阅结束。要继续就再开一条。 |
 | `error` | 仅 SSE。响应头发出之后迭代器抛错。 | `data.code` 是 `SDKError` 的代码。 |
 
@@ -38,7 +42,7 @@ data: {"botId":"...","sessionId":"","generation":0,"seq":"22","updatedSeq":"22",
 编码器实现的规则：
 
 - `event` 是 `type` 字符串。它必须匹配 `^[a-z][a-z0-9._-]{0,60}$`。
-- 事件没有 id 时省略 `id`（`connected`、`heartbeat`、`resync-required`、`turn.failed`、`bot.state.changed`、`bot.updated`、`stream.closed`、`error`）。
+- 事件没有 id 时省略 `id`（`connected`、`heartbeat`、`resync-required`、`turn.failed`、`bot.state.changed`、`bot.updated`、`agent.state`、`computer.actions`、`box.state`、`page.title.changed`、`stream.closed`、`error`）。
 - `id` 最长 2048 个字符，且不能包含 CR、LF 或 NUL。
 - `data` 是一个 JSON 对象。`JSON.stringify` 会转义文本，因此消息内容不能冲出 `data` 行。
 - 事件之间用空行分开。
@@ -70,4 +74,4 @@ x-accel-buffering: no
 
 这一批内部若代际变化，会先产出 `reset`，并把游标的 `afterUpdatedSeq` 设回 `0`，再应用这一批里的行。
 
-属于另一个 `agentId` 或 `sessionId` 的帧会被忽略。
+属于另一个 `agentId` 或 `sessionId` 的帧会被忽略。`agent.state` 和 `computer.actions` 把这个过滤用在帧内的行上。0.75.8 的 `box.state` 和 `page.title.changed` 没有 agent id，所以收到它们的那次订阅会把事件产出。

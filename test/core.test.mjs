@@ -96,6 +96,13 @@ test('login polling waits on 404 and returns credentials only in memory', async 
   assert.equal(calls,2);assert.equal(credentials.accessToken,'new-access');
 });
 
+test('login polling stops on a sign-in policy violation without retrying', async () => {
+  feature('pollLogin');
+  let calls=0;
+  await assert.rejects(core.pollLogin({uuid:'fixture-uuid',verifier:'fixture-verifier'},{fetchImpl:async()=>{calls++;return new Response(JSON.stringify({error:'sign_in_policy_violation'}),{status:403});},sleep:async()=>{},maxAttempts:5}),/SIGN_IN_POLICY_VIOLATION/);
+  assert.equal(calls,1);
+});
+
 test('can fetch the cloud roster without connecting to or waking the Bot computer', async()=>{
   feature('verify');
   const calls=[];const responses=[{authId:'private'}, {agents:[{agentId:'a',name:'Private A',avatarShape:'circle'},{agentId:'b',name:'Private B'}],truncated:false}];

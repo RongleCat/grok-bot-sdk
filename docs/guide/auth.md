@@ -2,7 +2,7 @@
 
 Use a new browser login for any app you ship. The Mac Keychain path is a local convenience for a machine that already runs Grok Bot.
 
-Both paths produce an `accessToken` string. Pass it to `new GrokBotClient({ accessToken })`. Add `teamId` when the login selected a team. Add `version` when you want the `x-cursor-client-version` header to name a client other than `0.70.2`.
+Both paths produce an `accessToken` string. Pass it to `new GrokBotClient({ accessToken })`. Add `teamId` when the login selected a team. Add `version` when you want the `x-cursor-client-version` header to name a client other than `0.75.8`.
 
 ## Browser login
 
@@ -81,7 +81,7 @@ Exiting the process drops the in-memory copy. The server session remains until i
 
 ```sh
 export GROK_BOT_ACCESS_TOKEN='<access token>'
-export GROK_BOT_CLIENT_VERSION='0.70.2'   # optional
+export GROK_BOT_CLIENT_VERSION='0.75.8'   # optional
 npx grok-bot-sdk whoami
 ```
 

@@ -7,7 +7,7 @@ import { GrokBotClient } from 'grok-bot-sdk'
 
 const client = new GrokBotClient({
   accessToken: process.env.GROK_BOT_ACCESS_TOKEN,
-  version: '0.70.2',
+  version: '0.75.8',
   teamId: undefined,
 })
 ```

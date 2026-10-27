@@ -23,7 +23,7 @@ Unknown constructor codes are stored as `SDK_ERROR`.
 | `BOT_ID_REQUIRED` | `botId` is empty, longer than 128, or outside `[A-Za-z0-9_-]`. |
 | `MESSAGE_INVALID` | Text, session, message id, or attachment arrays failed validation. |
 | `SEND_UNCONFIRMED` | The send HTTP call failed. Do not automatically send again. |
-| `SEND_REFUSED` | HTTP succeeded and `delivery` was not a known acceptance. |
+| `SEND_REFUSED` | HTTP succeeded and `delivery` was not a known acceptance. Integer `4` and `GROK_BOT_USER_MESSAGE_DELIVERY_REFUSED` are this case. |
 | `CURSOR_INVALID` | Cursor fields, resume encoding, or using both cursor forms. |
 | `CURSOR_SCOPE_MISMATCH` | `resumeFrom` names another bot or session. |
 | `STREAM_CONNECTION_FAILED` | Watch HTTP failed, or the socket failed before a typed stream error. |
@@ -54,6 +54,7 @@ These are `Error` with a fixed `message`, thrown by `pollLogin`, `decryptMacSecr
 |---|---|
 | `LOGIN_POLL_FAILED` | Three poll responses in a row were neither success nor HTTP 404. |
 | `LOGIN_TIMED_OUT` | `maxAttempts` finished while the login was still pending. |
+| `SIGN_IN_POLICY_VIOLATION` | Poll returned HTTP 403 `{ "error": "sign_in_policy_violation" }`. Polling stops. |
 | `CREDENTIAL_DECRYPT_FAILED` | The blob is not a `v10` secret this code can open. |
 | `ACCOUNT_STORE_INVALID` | `cursor-accounts` is not JSON. |
 | `NO_ACTIVE_ACCOUNT` | The store has no usable `active` account. |

@@ -4,7 +4,7 @@ layout: home
 hero:
   name: grok-bot-sdk
   text: 用 Node.js 调用 Grok Bot 客户端协议
-  tagline: 浏览器登录、Bot 名单、统一头像、发送，以及把 Connect 回复转发成 SSE。对照 Grok Bot 0.70.2。非官方。
+  tagline: 浏览器登录、Bot 名单、会话、转录、任务、统一头像、发送，以及把 Connect 回复转发成 SSE。对照 Grok Bot 0.75.8。非官方。
   actions:
     - theme: brand
       text: 怎么授权

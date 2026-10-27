@@ -2,7 +2,7 @@
 
 要交给别人用的程序，走一次新的浏览器登录。Mac 钥匙串路径只适合这台电脑上已经装着 Grok Bot、并且你本人在场的时候。
 
-两条路径都得到一个 `accessToken` 字符串。把它传给 `new GrokBotClient({ accessToken })`。登录选中了团队时再加上 `teamId`。想让 `x-cursor-client-version` 写成 `0.70.2` 以外的版本时，传入 `version`。
+两条路径都得到一个 `accessToken` 字符串。把它传给 `new GrokBotClient({ accessToken })`。登录选中了团队时再加上 `teamId`。想让 `x-cursor-client-version` 写成 `0.75.8` 以外的版本时，传入 `version`。
 
 ## 浏览器登录
 
@@ -81,7 +81,7 @@ const session = await pollLogin(flow)
 
 ```sh
 export GROK_BOT_ACCESS_TOKEN='<访问令牌>'
-export GROK_BOT_CLIENT_VERSION='0.70.2'   # 可选
+export GROK_BOT_CLIENT_VERSION='0.75.8'   # 可选
 npx grok-bot-sdk whoami
 ```
 

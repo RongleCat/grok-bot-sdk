@@ -11,7 +11,7 @@
 | `authorization` | `Bearer <accessToken>` |
 | `x-cursor-client-type` | `sand` |
 | `x-cursor-client-source` | `sand-desktop` |
-| `x-cursor-client-version` | `options.version`，默认 `0.70.2` |
+| `x-cursor-client-version` | `options.version`，默认 `0.75.8` |
 | `x-cursor-client-os` | `darwin` |
 | `x-sand-box-namespace` | `prod` |
 | `x-ghost-mode` | `true` |
@@ -20,27 +20,31 @@
 | `x-cursor-team-id` | 设置了 `teamId` 时出现 |
 | `x-cursor-checksum` | 设置了 `machineId` 时出现 |
 
-校验和把一个粗粒度时间戳和 machine id 按 0.70.2 客户端的方式混合。对已经核对过的登录路径，它是可选的。
+校验和把一个粗粒度时间戳和 machine id 按 0.75.8 客户端仍然使用的方式混合（`Date.now()/1e6`，再 XOR 165）。对已经核对过的登录路径，它是可选的。
+
+这个 SDK 里的 `x-ghost-mode` 保持 `true`。0.75.8 桌面客户端只有在账号隐私模式允许训练时才发送 `false`。本包不读取这项设置。
 
 ## `GET https://cursor.com/loginDeepControl`
 
 查询参数：`challenge`、`uuid`、`mode=login`、`redirectTarget=sand`、`supportsSelectedTeamLogin=true`。
 
-`challenge` 是 Base64URL(SHA-256(32 个随机字节))。账号持有人在这个页面上批准 SDK 会话。
+`challenge` 是 Base64URL(SHA-256(32 个随机字节))。账号持有人在这个页面上批准 SDK 会话。0.75.8 桌面登录仍然使用 `redirectTarget=sand` 和 `supportsSelectedTeamLogin=true`。
 
 ## `GET /auth/poll`
 
-查询参数：`uuid`、`verifier`。HTTP 404 表示仍在等待。HTTP 200 返回 `accessToken`、`refreshToken`，有时还有 `selectedTeamId`。
+查询参数：`uuid`、`verifier`。HTTP 404 表示仍在等待。HTTP 200 返回 `accessToken`、`refreshToken`，有时还有 `selectedTeamId`。HTTP 403 且响应体为 `{ "error": "sign_in_policy_violation" }` 时停止轮询，并抛出 `SIGN_IN_POLICY_VIOLATION`。
 
 ## `POST /aiserver.v1.DashboardService/GetMe`
 
-请求体 `{}`。由 `getMe()` 使用。可用的响应体包含 `authId` 或 `userId`。
+请求体 `{}`。由 `getMe()` 使用。可用的响应体包含 `authId` 或 `userId`。0.75.8 增加了可选请求字段 `teamId`、`sourceSiteHostname` 和 `includeMobileAppStatus`。这个 SDK 不发送它们。响应仍然包含 `authId`、`userId`、`email` 和 `teamId`，以及客户端原样返回的后续资料字段。
 
 ## `POST /aiserver.v1.GrokBotService/ListGrokBotAgents`
 
-除非调用方把标志设为 false，请求体是 `{ "includeTeamAgents": true }`。
+除非调用方把标志设为 false，请求体是 `{ "includeTeamAgents": true }`。调用方设置时才会发送 0.75.8 的可选字段：`role`（字符串）和 `addedTeamAgentsOnly`（布尔）。
 
-这个 SDK 读取的响应字段：`agents[]`、`truncated`。每个 agent 需要 `agentId`。头像输入是 `avatarShape`、`avatarColor`、`avatarUrl`、`avatarDataUrl` 和 `avatarVersion`。名单输入是 `id`、`name`、`description`、`title`、`harness`、`kind`、`viewerSessionId`、`teamId`、`viewerIsOwner` 和 `viewerCanManage`。
+这个 SDK 读取的响应字段：`agents[]`、`truncated`、`slackConnections[]` 和 `teamsConnections[]`。每个 agent 需要 `agentId`。头像输入是 `avatarShape`、`avatarColor`、`avatarUrl`、`avatarDataUrl` 和 `avatarVersion`。0.75.8 的 `GrokBotAgent` 记录不再包含 `avatarDataUrl`；旧载荷如果还带着这个字段，SDK 仍然接受。`kind` 现在是 `GrokBotAgentKind` 枚举（`GROK_BOT_AGENT_KIND_AGENT`、`GROK_BOT_AGENT_KIND_ROOM`，或整数 `1` 和 `2`）。数字枚举会存成十进制字符串。
+
+名单还会读取 `legacyAgentId`、`role`、`visibility`、`createdAtMs`、`updatedAtMs`、`ownerDisplayName`、`draftingDisabled`、`accessGrantsOnly`、`memberAgentIds`、`viewerAllowedActions`、`teamDefaultForViewer`、`voiceId`、`voiceSpeed` 和 `voiceLanguage`。嵌套的 `people`、`suggestions`、`publishedAt`、`viewerAccess` 和 `routinePolicy` 不会复制到 `Bot` 上。
 
 ## `POST /aiserver.v1.GrokBotService/SendGrokBotUserMessage`
 
@@ -60,7 +64,11 @@
 }
 ```
 
-`delivery` 映射为 `accepted-box`、`accepted-temporal` 或 `duplicate`，见[客户端](/zh/api/client)。`dispatched` 从布尔字段原样复制。
+在 0.75.8 里，这三个整数分别是 `GrokBotClientSurface.DESKTOP`、`GrokBotUserMessageInitiator.USER` 和 `GrokBotSendSource.CHAT`。桌面客户端还可以发送 `source` `2`（`MOBILE`）或 `3`（`GLASS`），`initiator` `2`–`6`，以及 `sendSource` `2`–`4`。这个 SDK 保持桌面聊天默认值，不把这些枚举做成选项。
+
+只有调用方提供时才发送的可选字段：`replyToId`、`replyQuote`、`taskId`、`language`、`richText` 和 `machineId`。0.75.8 的请求还有 `traceparent`、`enterEpochMs`、`composedAtMs`、`mcpConfigJson`、`onePasswordAppInstalled` 和 `firstSentAgeMs`。这个 SDK 不发送它们。
+
+`delivery` `1`、`2`、`3` 映射为 `accepted-box`、`accepted-temporal` 和 `duplicate`。`delivery` `4`（`GROK_BOT_USER_MESSAGE_DELIVERY_REFUSED`）抛出 `SEND_REFUSED`。`dispatched` 从布尔字段原样复制。响应里还可能有 `mode` 和 `refusal`；这个 SDK 不返回它们。
 
 ## `POST /aiserver.v1.GrokBotService/ListGrokBotTranscriptEntries`
 
@@ -70,7 +78,9 @@
 { "agentId": "<Bot.id>", "sessionId": "", "limit": 1 }
 ```
 
-SDK 读取 `generation`，以及返回条目的 `updatedSeq`（或 `seq`），然后从最大值之后开始订阅。
+`listTranscript` 还可以发送可选的 `generation`、`beforeSeq` 和 `unreadBoundaryMs`。响应除了 `entries` 和 `generation`，还可能包含 `cloudAgentPeerIds`、`cloudAgentPeerIdsKnown` 和 `unreadAnchor`。
+
+订阅路径读取 `generation`，以及返回条目的 `updatedSeq`（或 `seq`），然后从最大值之后开始订阅。
 
 ## `POST /aiserver.v1.GrokBotService/WatchGrokBotTranscripts`
 
@@ -107,9 +117,29 @@ connect-accept-encoding: identity
 
 结束帧带有 `error` 属性时变成 `STREAM_RPC_ERROR`。错误对象不会被重新抛出，也不会复制进 SDK 错误。结束帧结束迭代器。数据帧交给映射器，产出[事件](/zh/api/events)。
 
+0.75.8 在 `GrokBotTranscriptWatchFrame` 上增加了四个 oneof：`agentState`、`computerActions`、`boxState` 和 `pageTitleChanged`。`agentStateChanged` 还多了 `changedAtMs`。游标、记录行、清空、游标过旧、心跳、回合失败和名单变更字段没有变化。
+
 转录文本是记录上的 base64 JSON 正文。解码器接受 UTF-8。文本消息是 `kind: "send-message"`，且 `message.type` 为 `"text"`，`message.content` 为字符串。这段内容变成 `event.data.text`。
 
 订阅请求的响应头超时是 20 秒，使用与调用方相同的 `AbortSignal`。
+
+## 为 0.75.8 增加的只读 RPC
+
+这些都是 `POST /aiserver.v1.GrokBotService/<Method>`，Connect JSON。
+
+| 方法 | 这个 SDK 发送的请求字段 | 这个 SDK 读取的响应字段 |
+|---|---|---|
+| `ListGrokBotAgentSessions` | `agentId` | `sessions[]`：`agentId`、`sessionId`、`kind`、`createdAtMs`、`updatedAtMs`、`lastActivityAtMs` |
+| `ListGrokBotAgentStatuses` | `agentIds` | `statuses[]`：`agentId`、`isRunning`，以及 `live` 和 `client` 的标量字段 |
+| `GetGrokBotSendStatus` | `agentId`、`messageId`、`sessionId`，可选 `firstSentAgeMs` | `status`、`echoEntryId`、`rejectionCode`、`acceptedAtMs` |
+| `ListGrokBotAgentTasks` | `agentId`，可选 `includeRecentlyDone` | `tasks[]`：`id`、`name`、`description`、`status`、`updatedAtMs`、未读字段、`pinnedAtMs`、`subagentIds` |
+| `ListGrokBotTasks` | `agentId`、`sessionId` | `tasks[]`：`id`、`title`、`state`、`note`、`createdAtMs`、`doneAtMs`、`seenDoneAtMs` |
+| `ListGrokBotSubagents` | `agentId` | `subagents[]`：`subagentId`、`subagentType`、`title`、`startedAtMs`、`freshUntilMs` |
+| `ListGrokBotAgentTodos` | `agentId` | `todos[]`：`id`、`content`、`status`、`createdAt`、`updatedAt`、`dependencies` |
+| `ListGrokBotAgentSkills` | `agentId` | `skills[]`：`id`、`name`、`description`、`body`、`source` |
+| `ListDeletedGrokBotAgentIds` | `agentIds` | `agentIds` |
+| `GetGrokBotRuntimeCapabilities` | `{}` | `capabilities` 的五项布尔值：持久身份、持久身份写入、Temporal 创建、agent 消息、服务器房间 |
+| `GetSandBoxRunState` | `{}` | `state`、`imageUpdateAvailable`、`egressTunnelOwnership`、`image.registryTag`、`image.staticSnapshotPath` |
 
 ## 这个 SDK 不调用的接口
 
@@ -118,7 +148,8 @@ connect-accept-encoding: identity
 - `POST /oauth/token`（刷新）
 - `POST /auth/exchange_user_api_key`
 - `POST /auth/logout`
-- `EnsureSandBox`、gateway `/health`、gateway `listAgents`
+- 公开客户端上的 `EnsureSandBox`（它仍留在 `core.mjs` 的 `verify()` 里）、gateway `/health`、gateway `listAgents`
 - 附件上传（`BeginGrokBotAttachmentUpload` 以及 box 上传路径）
+- 创建、删除、发布、置顶、忽略和消息表情这类写 RPC
 
-生成出来的客户端还有数百个 RPC 名字。上面这份清单里没有的名字，就没有被包装、没有被调用，也不在这个包的测试范围内。
+0.75.8 的 `GrokBotService` 有 367 个方法：362 个一元调用，5 个服务端流。上面清单里没有的名字，就没有被包装、没有被调用，也不在这个包的测试范围内。

@@ -15,7 +15,7 @@ interface ClientOptions {
 | Option | Required | Behavior |
 |---|---|---|
 | `accessToken` | yes | Sent as `Authorization: Bearer`. An empty string throws `MISSING_ACCESS_TOKEN`. |
-| `version` | no | `x-cursor-client-version`. Default `0.70.2`. |
+| `version` | no | `x-cursor-client-version`. Default `0.75.8`. |
 | `machineId` | no | When set, adds `x-cursor-checksum`. |
 | `teamId` | no | When set, adds `x-cursor-team-id`. |
 | `fetchImpl` | no | Replaces global `fetch`. |
@@ -30,15 +30,19 @@ Resolves with the JSON object when `authId` or `userId` is present. Otherwise th
 
 The object can contain email, name, team, and profile fields. Persist only what your privacy rules allow.
 
-## `listBots(options?): Promise<{ bots: Bot[]; truncated: boolean }>`
+## `listBots(options?): Promise<{ bots: Bot[]; truncated: boolean; slackConnections: SlackConnection[]; teamsConnections: TeamsConnection[] }>`
 
 ```ts
-listBots({ includeTeamAgents?: boolean }): Promise<{ bots: Bot[]; truncated: boolean }>
+listBots({
+  includeTeamAgents?: boolean
+  role?: string
+  addedTeamAgentsOnly?: boolean
+}): Promise<{ bots: Bot[]; truncated: boolean; slackConnections: SlackConnection[]; teamsConnections: TeamsConnection[] }>
 ```
 
-`includeTeamAgents` defaults to `true`.
+`includeTeamAgents` defaults to `true`. `role` and `addedTeamAgentsOnly` are omitted from the request unless you set them.
 
-Throws `RPC_FAILED` when the HTTP call fails, and `INVALID_ROSTER_RESPONSE` when `agents` is missing. Each element goes through `normalizeBot`. `truncated` is `true` only when the server sends `truncated: true`.
+Throws `RPC_FAILED` when the HTTP call fails, and `INVALID_ROSTER_RESPONSE` when `agents` is missing. Each element goes through `normalizeBot`. `truncated` is `true` only when the server sends `truncated: true`. Missing connection arrays become empty arrays.
 
 ## `normalizeBot(agent): Bot`
 
@@ -55,15 +59,29 @@ interface Bot {
   avatarColor: string
   avatar: ResolvedAvatar
   harness: string
+  role: string
   kind: string
+  visibility: string
   sessionId: string
   teamId: number | null
   viewerIsOwner: boolean
   viewerCanManage: boolean
+  teamDefaultForViewer: boolean
+  ownerDisplayName: string
+  draftingDisabled: boolean
+  accessGrantsOnly: boolean
+  memberAgentIds: string[]
+  viewerAllowedActions: string[]
+  createdAtMs: string | null
+  updatedAtMs: string | null
+  legacyAgentId: string
+  voiceId: string
+  voiceSpeed: number | null
+  voiceLanguage: string
 }
 ```
 
-`id` is `agentId`. `serverId` is the record's `id` when that value is a string. `sessionId` is `viewerSessionId`. `avatarShape` and `avatarColor` copy the resolved character, so they stay aligned with `avatar.character`.
+`id` is `agentId`. `serverId` is the record's `id` when that value is a string. `sessionId` is `viewerSessionId`. `avatarShape` and `avatarColor` copy the resolved character, so they stay aligned with `avatar.character`. `kind` and `visibility` keep a string enum name, or the decimal form when the server sends a number.
 
 ## `sendMessage(options)`
 
@@ -75,6 +93,12 @@ interface SendOptions {
   messageId?: string
   attachmentPaths?: string[]
   attachmentNames?: string[]
+  replyToId?: string
+  replyQuote?: string
+  taskId?: string
+  language?: string
+  richText?: string
+  machineId?: string
 }
 
 sendMessage(options: SendOptions): Promise<{
@@ -87,9 +111,30 @@ sendMessage(options: SendOptions): Promise<{
 
 `botId` must match `^[A-Za-z0-9_-]{1,128}$`. `text` must contain non-whitespace. `sessionId` defaults to `''`. `messageId` defaults to a new UUID. The two attachment arrays must be the same length, and every item must be a non-empty string. Anything else throws `MESSAGE_INVALID`.
 
-A failed HTTP call throws `SEND_UNCONFIRMED`. A body whose `delivery` is outside the known set throws `SEND_REFUSED`. Known deliveries are the integers `1`, `2`, `3` and the enum names `GROK_BOT_USER_MESSAGE_DELIVERY_ACCEPTED_BOX`, `GROK_BOT_USER_MESSAGE_DELIVERY_ACCEPTED_TEMPORAL`, and `GROK_BOT_USER_MESSAGE_DELIVERY_DUPLICATE`.
+A failed HTTP call throws `SEND_UNCONFIRMED`. A body whose `delivery` is outside the known acceptance set throws `SEND_REFUSED`. Known acceptances are the integers `1`, `2`, `3` and the enum names `GROK_BOT_USER_MESSAGE_DELIVERY_ACCEPTED_BOX`, `GROK_BOT_USER_MESSAGE_DELIVERY_ACCEPTED_TEMPORAL`, and `GROK_BOT_USER_MESSAGE_DELIVERY_DUPLICATE`. Integer `4` and `GROK_BOT_USER_MESSAGE_DELIVERY_REFUSED` are a refusal and throw `SEND_REFUSED`.
 
-The request also sends `sentAtMs` as a decimal string of `Date.now()`, plus `isFork: false`, `source: 1`, `initiator: 1`, and `sendSource: 1`. Those three integers are the values the 0.70.2 client sent. This SDK does not expose them as options.
+The request also sends `sentAtMs` as a decimal string of `Date.now()`, plus `isFork: false`, `source: 1` (`DESKTOP`), `initiator: 1` (`USER`), and `sendSource: 1` (`CHAT`). Those are the 0.75.8 desktop chat values. Optional reply, task, language, rich text, and machine id fields are sent only when you pass them. An empty optional string throws `MESSAGE_INVALID`. `richText` may be an empty string.
+
+## Read methods added for 0.75.8
+
+Each method throws `RPC_FAILED` when the HTTP call fails or the expected array or object is missing. `botId` uses the same shape as `sendMessage` and otherwise throws `BOT_ID_REQUIRED`.
+
+| Method | Call |
+|---|---|
+| `listSessions(botId)` | `{ sessions }` from `ListGrokBotAgentSessions` |
+| `listTranscript({ botId, sessionId?, limit?, generation?, beforeSeq?, unreadBoundaryMs? })` | `{ generation, entries, cloudAgentPeerIds, cloudAgentPeerIdsKnown, unreadAnchor }`. `limit` defaults to 50. |
+| `listAgentStatuses(agentIds?)` | `{ statuses }` with `live` and `client` scalar fields |
+| `getSendStatus({ botId, messageId, sessionId?, firstSentAgeMs? })` | `{ status, echoEntryId, rejectionCode, acceptedAtMs }`. Known statuses are `unspecified`, `not-found`, `accepted`, `rejected`, `pending`, and `unknown-durability`. |
+| `listAgentTasks({ botId, includeRecentlyDone? })` | `{ tasks }` |
+| `listTasks({ botId, sessionId? })` | `{ tasks }` for one session. `sessionId` defaults to `''`. |
+| `listSubagents(botId)` | `{ subagents }` |
+| `listAgentTodos(botId)` | `{ todos }` |
+| `listAgentSkills(botId)` | `{ skills }`, including each skill `body` |
+| `listDeletedAgentIds(agentIds?)` | `{ agentIds }` that the server still reports as deleted |
+| `getRuntimeCapabilities()` | five booleans: durable identity, durable identity writes, temporal creation, agent messaging, server rooms |
+| `getSandBoxRunState()` | `{ runState, imageUpdateAvailable, egressTunnelOwnership, image }`. `runState` is `unspecified`, `absent`, `hibernated`, `running`, or `starting` when the enum is known. |
+
+`listTranscript` throws `CURSOR_INVALID` for a bad session, limit, generation, or sequence. `getSendStatus` throws `MESSAGE_INVALID` when `messageId` is empty. These reads do not send a chat message. `getSendStatus` only asks whether an earlier send was accepted.
 
 ## `watchBot(options): AsyncGenerator<BotEvent>`
 
@@ -148,7 +193,7 @@ pollLogin(flow: LoginFlow, options?: {
 }): Promise<{ accessToken: string; refreshToken: string; selectedTeamId?: number }>
 ```
 
-`maxAttempts` defaults to 150. Success requires both token strings. `LOGIN_POLL_FAILED` and `LOGIN_TIMED_OUT` are thrown as `Error` with that message, not as `SDKError`.
+`maxAttempts` defaults to 150. Success requires both token strings. `LOGIN_POLL_FAILED`, `LOGIN_TIMED_OUT`, and `SIGN_IN_POLICY_VIOLATION` are thrown as `Error` with that message, not as `SDKError`. The policy error is HTTP 403 `{ "error": "sign_in_policy_violation" }` and does not retry.
 
 ## `desktopCredentials(): Promise<ClientOptions & { version: string }>`
 

@@ -8,7 +8,7 @@
 <h1 align="center">grok-bot-sdk</h1>
 
 <p align="center"><strong>Unofficial Node.js SDK for the Grok Bot desktop client protocol</strong></p>
-<p align="center"><em>Browser login · Account and bot roster · Normalized avatars · Send · Connect replies forwarded as SSE</em></p>
+<p align="center"><em>Browser login · Account and bot roster · Sessions, transcript, and tasks · Normalized avatars · Send · Connect replies forwarded as SSE</em></p>
 <p align="center"><a href="https://ronglecat.github.io/grok-bot-sdk/">https://ronglecat.github.io/grok-bot-sdk/</a></p>
 
 <p align="center">
@@ -21,7 +21,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <a href="https://github.com/RongleCat/grok-bot-sdk/stargazers"><img src="https://img.shields.io/github/stars/RongleCat/grok-bot-sdk?style=social" alt="GitHub stars" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D22.13-339933?logo=node.js&logoColor=white" alt="Node.js" />
-  <img src="https://img.shields.io/badge/client-Grok%20Bot%200.70.2-lightgrey" alt="Grok Bot 0.70.2" />
+  <img src="https://img.shields.io/badge/client-Grok%20Bot%200.75.8-lightgrey" alt="Grok Bot 0.75.8" />
   <img src="https://img.shields.io/badge/note-unofficial-yellow" alt="Unofficial" />
 </p>
 
@@ -42,7 +42,7 @@
 ---
 
 > [!NOTE]
-> **About this SDK.** grok-bot-sdk reproduces the browser login and the read, send, and reply-stream calls used by the Grok Bot **0.70.2** desktop client. It is an independent open-source library by [铁柱AGI](https://x.com/cgnot996). It is **not an xAI product, not a Cursor product, and not the official Grok Bot SDK**.
+> **About this SDK.** grok-bot-sdk reproduces the browser login and the read, send, and reply-stream calls used by the Grok Bot **0.75.8** desktop client. It is an independent open-source library by [铁柱AGI](https://x.com/cgnot996). It is **not an xAI product, not a Cursor product, and not the official Grok Bot SDK**.
 >
 > The same author also builds [Grok App](https://github.com/RongleCat/grok-app), a desktop workbench for the local Grok Build CLI. Grok App and this SDK are different programs.
 
@@ -155,15 +155,17 @@ return client.botEventsSSE({
 
 ## What this release includes
 
-Verified against Grok Bot 0.70.2 on 14 October 2026:
+Verified against Grok Bot 0.75.8:
 
 - One browser login continued into account read and the cloud bot roster.
 - The same read path works with the Mac client's existing session.
-- Roster records come back with one avatar shape, whether the server sent the fields or the SDK derived them.
+- Roster records come back with one avatar shape, whether the server sent the fields or the SDK derived them. The avatar hash is still `grok-bot-0.70.2`. `pumpkin` is explicit only.
 - `WatchGrokBotTranscripts` connects with Connect JSON, and an existing reply was forwarded through `botEventsSSE`.
-- Offline tests cover login URL shape, avatar vectors, frame parsing, cursors, cancellation, SSE framing, and send results.
+- Read calls: `listSessions`, `listTranscript`, `listAgentStatuses`, `getSendStatus`, `listAgentTasks`, `listTasks`, `listSubagents`, `listAgentTodos`, `listAgentSkills`, `listDeletedAgentIds`, `getRuntimeCapabilities`, and `getSandBoxRunState`.
+- Watch events also include `agent.state`, `computer.actions`, `box.state`, and `page.title.changed`.
+- Offline tests cover login URL shape, avatar vectors, frame parsing, cursors, cancellation, SSE framing, send results, and the new read records.
 
-The default client version string is `0.70.2`. Pass `version` when you know the client you are matching.
+The default client version string is `0.75.8`. Pass `version` when you know the client you are matching. The CLI also has read-only subcommands: `bots`, `sessions`, `transcript`, `tasks`, `capabilities`, and `box`.
 
 ## Notes you should read
 

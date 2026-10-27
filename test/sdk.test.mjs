@@ -106,6 +106,91 @@ test('roster updates cannot embed a different Bot inside the selected scope',asy
  assert.deepEqual(events.filter(e=>e.type==='bot.updated').map(e=>e.data.bot.id),[uuid]);
 });
 
+test('default client version is 0.75.8 and roster options stay off the wire until set',async()=>{
+ feature();let headers,body;
+ const client=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async(url,init)=>{headers=init.headers;body=JSON.parse(init.body);return new Response(JSON.stringify({authId:'account',agents:[{agentId:uuid,kind:1,role:'main',createdAtMs:'10',slackConnections:[]}],truncated:false,slackConnections:[{agentId:uuid,connected:true,workspaceName:'kept-out'}],teamsConnections:[{agentId:uuid,installState:'GROK_BOT_TEAMS_INSTALL_STATE_INSTALLED',installedTeamCount:1,installedTeams:[{teamId:'t',displayName:'Team',rscGranted:true,installedAtMs:'4'}]}]}),{status:200});}});
+ await client.getMe();
+ assert.equal(headers['x-cursor-client-version'],'0.75.8');
+ assert.match(headers['user-agent'],/Sand\/0\.75\.8/);
+ const roster=await client.listBots({role:'main',addedTeamAgentsOnly:true});
+ assert.deepEqual(body,{includeTeamAgents:true,role:'main',addedTeamAgentsOnly:true});
+ assert.equal(roster.bots[0].kind,'1');
+ assert.equal(roster.bots[0].role,'main');
+ assert.equal(roster.bots[0].createdAtMs,'10');
+ assert.equal(roster.slackConnections[0].connected,true);
+ assert.equal(roster.slackConnections[0].workspaceName,'kept-out');
+ assert.equal(roster.teamsConnections[0].installedTeams[0].displayName,'Team');
+ assert.ok(!JSON.stringify({kind:roster.bots[0].kind}).includes('private'));
+});
+
+test('sendMessage keeps desktop user chat enums and adds only provided reply fields',async()=>{
+ feature();let sent;const client=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async(url,init)=>{sent=JSON.parse(init.body);return new Response(JSON.stringify({delivery:4}),{status:200});}});
+ await assert.rejects(client.sendMessage({botId:uuid,text:'hello',messageId:'caller-nonce',replyToId:'reply-1',taskId:'task-1',richText:'[]'}),/SEND_REFUSED/);
+ assert.equal(sent.source,1);assert.equal(sent.initiator,1);assert.equal(sent.sendSource,1);
+ assert.equal(sent.replyToId,'reply-1');assert.equal(sent.taskId,'task-1');assert.equal(sent.richText,'[]');
+ assert.equal(sent.isFork,false);assert.equal('machineId' in sent,false);
+ await assert.rejects(client.sendMessage({botId:uuid,text:'hello',replyToId:''}),/MESSAGE_INVALID/);
+});
+
+test('read methods map 0.75.8 records',async()=>{
+ feature();const calls=[];
+ const client=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async(url,init)=>{calls.push({url,body:JSON.parse(init.body)});const path=url.split('/').pop();
+  const bodies={
+   ListGrokBotAgentSessions:{sessions:[{agentId:uuid,sessionId:'s',kind:'GROK_BOT_AGENT_SESSION_KIND_MAIN',createdAtMs:'1',updatedAtMs:'2',lastActivityAtMs:'3'}]},
+   ListGrokBotTranscriptEntries:{generation:4,entries:[{seq:'8',updatedSeq:'9',entryId:'e',entryKind:'send-message',body:Buffer.from(JSON.stringify({kind:'note'})).toString('base64')}],cloudAgentPeerIds:['peer'],cloudAgentPeerIdsKnown:true,unreadAnchor:{hasNewerRows:true,entryId:'e',seq:'8',newerRows:2}},
+   ListGrokBotAgentStatuses:{statuses:[{agentId:uuid,isRunning:true,live:{agentId:uuid,sessionId:'',isRunning:true,activity:{kind:'tool'}},client:{agentId:uuid,unreadCount:2,lastMessagePreview:'hidden'}}]},
+   GetGrokBotSendStatus:{status:'GROK_BOT_SEND_STATUS_NOT_FOUND',echoEntryId:null,rejectionCode:'missing',acceptedAtMs:'5'},
+   ListGrokBotAgentTasks:{tasks:[{id:'t',name:'Name',description:'d',status:'open',updatedAtMs:'6',subagentIds:['sub']}]},
+   ListGrokBotTasks:{tasks:[{id:'task',title:'Title',state:2,note:'n',createdAtMs:'7',doneAtMs:'0',seenDoneAtMs:null}]},
+   ListGrokBotSubagents:{subagents:[{subagentId:'sub',subagentType:'research',title:'Sub',startedAtMs:'8',freshUntilMs:'9'}]},
+   ListGrokBotAgentTodos:{todos:[{id:'todo',content:'do',status:'TODO_STATUS_PENDING',createdAt:'1',updatedAt:'2',dependencies:['a']}]},
+   ListGrokBotAgentSkills:{skills:[{id:'skill',name:'Skill',description:'desc',body:'secret body',source:'user'}]},
+   ListDeletedGrokBotAgentIds:{agentIds:[uuid]},
+   GetGrokBotRuntimeCapabilities:{capabilities:{durableIdentityEnabled:true,durableIdentityWritesEnabled:false,temporalCreationEnabled:true,agentMessagingEnabled:true,serverRoomsEnabled:false}},
+   GetSandBoxRunState:{state:'SAND_BOX_RUN_STATE_HIBERNATED',imageUpdateAvailable:true,egressTunnelOwnership:false,image:{registryTag:'tag',staticSnapshotPath:'/snap'}},
+  };
+  return new Response(JSON.stringify(bodies[path]??{}),{status:200});}});
+ const sessions=await client.listSessions(uuid);
+ assert.equal(sessions.sessions[0].kind,'GROK_BOT_AGENT_SESSION_KIND_MAIN');
+ const transcript=await client.listTranscript({botId:uuid,limit:1,generation:4,beforeSeq:'9',unreadBoundaryMs:'3'});
+ assert.equal(transcript.entries[0].body.kind,'note');
+ assert.equal(transcript.unreadAnchor.newerRows,2);
+ assert.deepEqual(calls.find(call=>call.url.endsWith('/ListGrokBotTranscriptEntries')).body,{agentId:uuid,sessionId:'',limit:1,generation:4,beforeSeq:'9',unreadBoundaryMs:'3'});
+ const statuses=await client.listAgentStatuses([uuid]);
+ assert.equal(statuses.statuses[0].live.activityKind,'tool');
+ assert.equal(statuses.statuses[0].client.unreadCount,2);
+ assert.equal((await client.getSendStatus({botId:uuid,messageId:'missing',firstSentAgeMs:'12'})).status,'not-found');
+ assert.equal((await client.listAgentTasks({botId:uuid,includeRecentlyDone:true})).tasks[0].subagentIds[0],'sub');
+ assert.equal((await client.listTasks({botId:uuid})).tasks[0].state,'2');
+ assert.equal((await client.listSubagents(uuid)).subagents[0].subagentType,'research');
+ assert.equal((await client.listAgentTodos(uuid)).todos[0].status,'TODO_STATUS_PENDING');
+ assert.equal((await client.listAgentSkills(uuid)).skills[0].body,'secret body');
+ assert.deepEqual(await client.listDeletedAgentIds([uuid]),{agentIds:[uuid]});
+ assert.equal((await client.getRuntimeCapabilities()).serverRoomsEnabled,false);
+ const box=await client.getSandBoxRunState();
+ assert.equal(box.runState,'hibernated');
+ assert.equal(box.image.registryTag,'tag');
+});
+
+test('watch frames new in 0.75.8 stay scoped to the selected bot',async()=>{
+ feature();const client=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async()=>wireResponse([
+  framed({agentStateChanged:{agentId:uuid,families:['live'],changedAtMs:'11'}}),
+  framed({agentState:{snapshot:true,live:[{agentId:uuid,sessionId:'',isRunning:true},{agentId:'other',sessionId:'',isRunning:true}],client:[{agentId:'other',unreadCount:1}]}}),
+  framed({computerActions:{actions:[{agentId:uuid,type:'click',x:1.5,y:2,button:'left',count:1,atMs:'12'},{agentId:'other',type:'secret'}]}}),
+  framed({boxState:{snapshot:false,state:{runState:3,recreateInFlight:false,updatedAtMs:'13'}}}),
+  framed({pageTitleChanged:{storeId:'store',canvasId:'canvas',title:'Title',changedAtMs:'14'}}),
+  framed({},2),
+ ])});
+ const events=await collect(client.watchBot({botId:uuid,cursor:{generation:1,afterUpdatedSeq:'0'}}));
+ assert.equal(events.find(event=>event.type==='bot.state.changed').data.changedAtMs,'11');
+ assert.deepEqual(events.find(event=>event.type==='agent.state').data.live.map(row=>row.agentId),[uuid]);
+ assert.equal(events.find(event=>event.type==='agent.state').data.client.length,0);
+ assert.deepEqual(events.find(event=>event.type==='computer.actions').data.actions.map(row=>row.type),['click']);
+ assert.equal(events.find(event=>event.type==='box.state').data.state.runState,'running');
+ assert.equal(events.find(event=>event.type==='page.title.changed').data.canvasId,'canvas');
+ assert.ok(!JSON.stringify(events).includes('secret'));
+});
+
 test('a decoded null resume cursor fails with CURSOR_INVALID before any request',async()=>{
  feature();let calls=0;const client=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async()=>{calls++;throw new Error();}});
  await assert.rejects(collect(client.watchBot({botId:uuid,resumeFrom:Buffer.from('null').toString('base64url')})),error=>error instanceof sdk.SDKError&&error.code==='CURSOR_INVALID');

@@ -1,8 +1,11 @@
-// Parameter derivation verified against Grok Bot 0.70.2 static client code.
-// This module does not load or execute the official renderer or its assets.
+// Parameter derivation verified against Grok Bot 0.70.2 and again against 0.75.8.
+// 0.75.8 keeps the same hash, salts, default shapes, and palette. It adds one
+// explicit shape, pumpkin, behind the sand_pumpkin_2026 picker gate. Pumpkin is
+// not part of the default hash set. This module does not load or execute the
+// official renderer or its assets.
 export const AVATAR_ALGORITHM_VERSION='grok-bot-0.70.2';
 export const DEFAULT_SHAPES=Object.freeze(['blob','pebble','squircle','tablet','wedge','hex','cloud','teardrop']);
-export const VALID_SHAPES=Object.freeze(['blob','pebble','bean','egg','squircle','tablet','capsule','cylinder','hex','gem','crystal','wedge','shield','dome','arch','cloud','teardrop','leaf','square','sparkle','clover','flower','heart','house','star']);
+export const VALID_SHAPES=Object.freeze(['blob','pebble','bean','egg','squircle','tablet','capsule','cylinder','hex','gem','crystal','wedge','shield','dome','arch','cloud','teardrop','leaf','square','sparkle','clover','flower','heart','house','star','pumpkin']);
 export const DEFAULT_COLORS=Object.freeze(['brown','red','orange','yellow','green','cyan','blue','violet','magenta','gray']);
 const PALETTE=Object.freeze(Object.fromEntries([
   ['black','#000000','#000000','#FFFFFF'],

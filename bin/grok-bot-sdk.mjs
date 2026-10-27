@@ -19,10 +19,17 @@ const failed = code => {
 function usage() {
   console.log(`grok-bot-sdk login [--no-open] --out <file>
 grok-bot-sdk whoami [--token-file <file>]
+grok-bot-sdk bots [--token-file <file>]
+grok-bot-sdk sessions --bot <id> [--token-file <file>]
+grok-bot-sdk transcript --bot <id> [--session <id>] [--limit <n>] [--token-file <file>]
+grok-bot-sdk tasks --bot <id> [--session <id>] [--token-file <file>]
+grok-bot-sdk capabilities [--token-file <file>]
+grok-bot-sdk box [--token-file <file>]
 
 login opens the browser, waits for approval, and writes the session to <file> (mode 0600).
 The command prints the login page URL and a redacted summary. It does not print tokens.
-whoami reads GROK_BOT_ACCESS_TOKEN, or the accessToken field inside --token-file, and prints only whether account fields exist.`);
+whoami reads GROK_BOT_ACCESS_TOKEN, or the accessToken field inside --token-file, and prints only whether account fields exist.
+The other commands are read-only. They print roster, session, transcript, task, capability, or box fields for the saved token.`);
   process.exitCode = 2;
 }
 
@@ -73,13 +80,17 @@ async function loadToken() {
   return { accessToken, version: process.env.GROK_BOT_CLIENT_VERSION };
 }
 
-async function whoami() {
+async function clientFromToken() {
   const loaded = await loadToken();
-  const client = new GrokBotClient({
+  return new GrokBotClient({
     accessToken: loaded.accessToken,
     ...loaded.version ? { version: loaded.version } : {},
     ...loaded.teamId !== undefined ? { teamId: loaded.teamId } : {},
   });
+}
+
+async function whoami() {
+  const client = await clientFromToken();
   const me = await client.getMe();
   console.log(JSON.stringify({
     status: 'ok',
@@ -89,9 +100,105 @@ async function whoami() {
   }));
 }
 
+function requireBot() {
+  const bot = option('--bot');
+  if (!bot || bot.startsWith('-')) {
+    usage();
+    return undefined;
+  }
+  return bot;
+}
+
+async function bots() {
+  const roster = await (await clientFromToken()).listBots();
+  console.log(JSON.stringify({
+    status: 'ok',
+    count: roster.bots.length,
+    truncated: roster.truncated,
+    slackConnectionCount: roster.slackConnections.length,
+    teamsConnectionCount: roster.teamsConnections.length,
+    bots: roster.bots.map(bot => ({
+      id: bot.id,
+      name: bot.name,
+      kind: bot.kind,
+      role: bot.role,
+      sessionId: bot.sessionId,
+    })),
+  }));
+}
+
+async function sessions() {
+  const bot = requireBot();
+  if (!bot) return;
+  const result = await (await clientFromToken()).listSessions(bot);
+  console.log(JSON.stringify({ status: 'ok', count: result.sessions.length, sessions: result.sessions }));
+}
+
+async function transcript() {
+  const bot = requireBot();
+  if (!bot) return;
+  const limitText = option('--limit');
+  const limit = limitText === undefined ? 20 : Number(limitText);
+  const result = await (await clientFromToken()).listTranscript({
+    botId: bot,
+    sessionId: option('--session') ?? '',
+    limit,
+  });
+  console.log(JSON.stringify({
+    status: 'ok',
+    generation: result.generation,
+    count: result.entries.length,
+    cloudAgentPeerIdsKnown: result.cloudAgentPeerIdsKnown,
+    peerCount: result.cloudAgentPeerIds.length,
+    unreadAnchor: result.unreadAnchor,
+    entries: result.entries.map(entry => ({
+      seq: entry.seq,
+      updatedSeq: entry.updatedSeq,
+      entryId: entry.entryId,
+      entryKind: entry.entryKind,
+      bodyOmitted: entry.bodyOmitted,
+      bodyKind: typeof entry.body?.kind === 'string' ? entry.body.kind : null,
+    })),
+  }));
+}
+
+async function tasks() {
+  const bot = requireBot();
+  if (!bot) return;
+  const client = await clientFromToken();
+  const sessionId = option('--session') ?? '';
+  const [agentTasks, taskList] = await Promise.all([
+    client.listAgentTasks({ botId: bot }),
+    client.listTasks({ botId: bot, sessionId }),
+  ]);
+  console.log(JSON.stringify({
+    status: 'ok',
+    agentTaskCount: agentTasks.tasks.length,
+    taskCount: taskList.tasks.length,
+    agentTasks: agentTasks.tasks,
+    tasks: taskList.tasks,
+  }));
+}
+
+async function capabilities() {
+  const result = await (await clientFromToken()).getRuntimeCapabilities();
+  console.log(JSON.stringify({ status: 'ok', ...result }));
+}
+
+async function box() {
+  const result = await (await clientFromToken()).getSandBoxRunState();
+  console.log(JSON.stringify({ status: 'ok', ...result }));
+}
+
 try {
   if (command === 'login') await login();
   else if (command === 'whoami') await whoami();
+  else if (command === 'bots') await bots();
+  else if (command === 'sessions') await sessions();
+  else if (command === 'transcript') await transcript();
+  else if (command === 'tasks') await tasks();
+  else if (command === 'capabilities') await capabilities();
+  else if (command === 'box') await box();
   else usage();
 } catch (error) {
   const code = error instanceof Error && /^[A-Z_]{1,80}$/.test(error.message) ? error.message : 'COMMAND_FAILED';

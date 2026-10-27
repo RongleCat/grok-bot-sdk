@@ -1,6 +1,6 @@
 # 头像
 
-算法版本：`grok-bot-0.70.2`。
+算法版本：`grok-bot-0.70.2`。在 Grok Bot 0.75.8 里又核对过一次：哈希、盐值、默认形状和调色板没有变。`pumpkin` 是额外的显式形状，默认哈希不会选中它。
 
 ```js
 import { deriveDefaultAvatar, resolveAgentAvatar } from 'grok-bot-sdk'

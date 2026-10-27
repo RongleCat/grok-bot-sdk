@@ -73,7 +73,8 @@ export async function requestJSON(url,{method='POST',headers={},body,fetchImpl=f
     if(Buffer.byteLength(text)>8*1024*1024) return {ok:false,httpStatus:response.status,code:'RESPONSE_TOO_LARGE'};
     let data;
     try {data=JSON.parse(text);} catch {return {ok:false,httpStatus:response.status,code:'NON_JSON_RESPONSE'};}
-    if(!response.ok) return {ok:false,httpStatus:response.status,code:typeof data?.code==='string' && /^[a-z_]{1,48}$/.test(data.code)?data.code:'HTTP_ERROR'};
+    const rawCode=typeof data?.code==='string'?data.code:typeof data?.error==='string'?data.error:'';
+    if(!response.ok) return {ok:false,httpStatus:response.status,code:/^[a-z_]{1,48}$/.test(rawCode)?rawCode:'HTTP_ERROR'};
     return {ok:true,httpStatus:response.status,data};
   } catch {return {ok:false,code:'NETWORK_OR_TLS_ERROR'};}
 }
@@ -125,6 +126,7 @@ export async function pollLogin(flow,{fetchImpl=fetch,sleep=delay,maxAttempts=15
   for(let attempt=0;attempt<maxAttempts;attempt++){
     const result=await requestJSON(url,{method:'GET',headers:{'content-type':'application/json'},fetchImpl});
     if(result.ok && typeof result.data.accessToken==='string' && typeof result.data.refreshToken==='string')return result.data;
+    if(result.httpStatus===403 && result.code==='sign_in_policy_violation')throw fixedError('SIGN_IN_POLICY_VIOLATION');
     if(result.httpStatus===404){errors=0;onPending(attempt+1);}
     else if(++errors>=3)throw fixedError('LOGIN_POLL_FAILED');
     await sleep(Math.min(1000*1.2**attempt,10000));

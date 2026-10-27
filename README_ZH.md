@@ -8,7 +8,7 @@
 <h1 align="center">grok-bot-sdk</h1>
 
 <p align="center"><strong>Grok Bot 桌面客户端协议的非官方 Node.js SDK</strong></p>
-<p align="center"><em>浏览器登录 · 账号与 Bot 名单 · 统一头像 · 发送 · Connect 回复转发为 SSE</em></p>
+<p align="center"><em>浏览器登录 · 账号与 Bot 名单 · 会话、转录与任务 · 统一头像 · 发送 · Connect 回复转发为 SSE</em></p>
 <p align="center"><a href="https://ronglecat.github.io/grok-bot-sdk/zh/">https://ronglecat.github.io/grok-bot-sdk/zh/</a></p>
 
 <p align="center">
@@ -21,7 +21,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <a href="https://github.com/RongleCat/grok-bot-sdk/stargazers"><img src="https://img.shields.io/github/stars/RongleCat/grok-bot-sdk?style=social" alt="GitHub stars" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D22.13-339933?logo=node.js&logoColor=white" alt="Node.js" />
-  <img src="https://img.shields.io/badge/client-Grok%20Bot%200.70.2-lightgrey" alt="Grok Bot 0.70.2" />
+  <img src="https://img.shields.io/badge/client-Grok%20Bot%200.75.8-lightgrey" alt="Grok Bot 0.75.8" />
   <img src="https://img.shields.io/badge/note-unofficial-yellow" alt="非官方" />
 </p>
 
@@ -42,7 +42,7 @@
 ---
 
 > [!NOTE]
-> **关于这个 SDK。** grok-bot-sdk 复现 Grok Bot **0.70.2** 桌面客户端使用的浏览器登录，以及读取账号、读取名单、发送消息和订阅回复。作者是 [铁柱AGI](https://x.com/cgnot996)。它**不是 xAI 官方产品，不是 Cursor 官方产品，也不是 Grok Bot 官方 SDK**。
+> **关于这个 SDK。** grok-bot-sdk 复现 Grok Bot **0.75.8** 桌面客户端使用的浏览器登录，以及读取账号、读取名单、发送消息和订阅回复。作者是 [铁柱AGI](https://x.com/cgnot996)。它**不是 xAI 官方产品，不是 Cursor 官方产品，也不是 Grok Bot 官方 SDK**。
 >
 > 同一作者的 [Grok App](https://github.com/RongleCat/grok-app) 是本机 Grok Build CLI 的桌面工作台。Grok App 和这个 SDK 是两个程序。
 
@@ -155,15 +155,17 @@ return client.botEventsSSE({
 
 ## 这一版包含什么
 
-2026-10-14 对照 Grok Bot 0.70.2 核对过：
+对照 Grok Bot 0.75.8 核对过：
 
 - 一次浏览器登录可以接着读账号和云端 Bot 名单。
 - 用 Mac 客户端里已有的会话，可以走同一条读取路径。
-- 名单里的每条记录都带回同一种头像结构。服务端带了字段就用字段，缺了就按 UUID 推算。
+- 名单里的每条记录都带回同一种头像结构。服务端带了字段就用字段，缺了就按 UUID 推算。头像哈希仍是 `grok-bot-0.70.2`。`pumpkin` 只在显式指定时出现。
 - `WatchGrokBotTranscripts` 以 Connect JSON 接通，既有回复可以经 `botEventsSSE` 转发。
-- 离线测试覆盖登录 URL、头像向量、帧解析、游标、取消、SSE 帧和发送结果。
+- 只读调用：`listSessions`、`listTranscript`、`listAgentStatuses`、`getSendStatus`、`listAgentTasks`、`listTasks`、`listSubagents`、`listAgentTodos`、`listAgentSkills`、`listDeletedAgentIds`、`getRuntimeCapabilities`、`getSandBoxRunState`。
+- 订阅事件还包含 `agent.state`、`computer.actions`、`box.state` 和 `page.title.changed`。
+- 离线测试覆盖登录 URL、头像向量、帧解析、游标、取消、SSE 帧、发送结果，以及新增的只读记录。
 
-默认客户端版本字符串是 `0.70.2`。你知道自己要匹配的客户端版本时，传入 `version`。
+默认客户端版本字符串是 `0.75.8`。你知道自己要匹配的客户端版本时，传入 `version`。CLI 还有只读子命令：`bots`、`sessions`、`transcript`、`tasks`、`capabilities`、`box`。
 
 ## 使用前要知道的事
 

@@ -23,6 +23,16 @@ test('cloud roster uses agentId UUID rather than the numeric server id or name',
   assert.throws(()=>avatar.resolveAgentAvatar({id:'11635495',name:'Webhook 测试员'}),/AVATAR_AGENT_ID_REQUIRED/);
 });
 
+test('0.75.8 pumpkin is an explicit shape and not a default hash shape',()=>{
+  feature('resolveAgentAvatar');
+  assert.equal(avatar.VALID_SHAPES.includes('pumpkin'),true);
+  assert.equal(avatar.DEFAULT_SHAPES.includes('pumpkin'),false);
+  const resolved=avatar.resolveAgentAvatar({agentId:'33cf1aae-3a51-452d-b761-34a6ccb62201',avatarShape:'pumpkin'});
+  assert.equal(resolved.character.shape,'pumpkin');
+  assert.equal(resolved.sources.shape,'explicit');
+  assert.equal(resolved.algorithmVersion,'grok-bot-0.70.2');
+});
+
 test('explicit valid fields override each default independently, including black and non-default shapes',()=>{
   feature('resolveAgentAvatar');
   const agentId='33cf1aae-3a51-452d-b761-34a6ccb62201';

@@ -15,8 +15,12 @@
 | `reset` | Generation changed, or the session was cleared | Drop local state for this session. `data.generation` is the new one. |
 | `resync-required` | Cursor is older than the server allows | The generator returns after this event. Reload history, then subscribe again. |
 | `turn.failed` | The bot turn failed | Read `turnId`, `code`, and `summary`. |
-| `bot.state.changed` | State families changed for this bot | Read `families`. |
+| `bot.state.changed` | State families changed for this bot | Read `families` and `changedAtMs`. |
 | `bot.updated` | This bot's roster fields changed | `data.bot` is a `Bot`, or `null` when the payload had no agent object. |
+| `agent.state` | A live or client snapshot for this bot and session | Read `snapshot`, `live`, and `client`. Rows for another bot are dropped. |
+| `computer.actions` | Computer-use actions for this bot | Read `actions`. Actions for another bot are dropped. |
+| `box.state` | The account box state arrived on this watch | Read `snapshot` and `state`. The frame has no agent id. |
+| `page.title.changed` | A canvas or document title changed on this watch | Read `storeId`, `canvasId` or `documentId`, `title`, and `changedAtMs`. |
 | `stream.closed` | SSE only. The iterator finished cleanly. | The watch ended. Open a new one to continue. |
 | `error` | SSE only. The iterator threw after headers were sent. | `data.code` is an `SDKError` code. |
 
@@ -38,7 +42,7 @@ data: {"botId":"...","sessionId":"","generation":0,"seq":"22","updatedSeq":"22",
 Rules implemented by the encoder:
 
 - `event` is the `type` string. It must match `^[a-z][a-z0-9._-]{0,60}$`.
-- `id` is omitted when the event has no id (`connected`, `heartbeat`, `resync-required`, `turn.failed`, `bot.state.changed`, `bot.updated`, `stream.closed`, `error`).
+- `id` is omitted when the event has no id (`connected`, `heartbeat`, `resync-required`, `turn.failed`, `bot.state.changed`, `bot.updated`, `agent.state`, `computer.actions`, `box.state`, `page.title.changed`, `stream.closed`, `error`).
 - `id` must be at most 2048 characters and must not contain CR, LF, or NUL.
 - `data` is one JSON object. `JSON.stringify` escapes text, so message content cannot break out of the `data` line.
 - Events are separated by a blank line.
@@ -70,4 +74,4 @@ Entries and deletes from a single transcript batch are sorted by `updatedSeq` us
 
 A generation change inside the batch yields `reset` and sets the cursor's `afterUpdatedSeq` back to `0` before the rows in that batch are applied.
 
-Frames for another `agentId` or `sessionId` are ignored.
+Frames for another `agentId` or `sessionId` are ignored. `agent.state` and `computer.actions` apply that filter to the rows inside the frame. `box.state` and `page.title.changed` have no agent id in 0.75.8, so they are yielded on the watch that received them.
