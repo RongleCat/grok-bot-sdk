@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0
+## 0.75.8
 
 Protocol surface matched to the Grok Bot 0.75.8 desktop client. The package stays ESM, with no runtime dependencies.
 
@@ -14,3 +14,7 @@ Protocol surface matched to the Grok Bot 0.75.8 desktop client. The package stay
 - Avatar derivation is unchanged (`grok-bot-0.70.2`). `pumpkin` is accepted as an explicit shape.
 
 The checksum, ghost-mode default, and desktop chat enums `source=1`, `initiator=1`, `sendSource=1` are the same values the 0.75.8 client still sends for desktop chat.
+
+## 0.1.0
+
+First release, matched to the Grok Bot 0.70.2 desktop client. From 0.75.8 on, the package version follows the Grok Bot version it targets.
