@@ -21,6 +21,7 @@ Unknown constructor codes are stored as `SDK_ERROR`.
 | `INVALID_ROSTER_RESPONSE` | `ListGrokBotAgents` returned no `agents` array. |
 | `INVALID_BOT_RECORD` | A roster element has no `agentId`. |
 | `BOT_ID_REQUIRED` | `botId` is empty, longer than 128, or outside `[A-Za-z0-9_-]`. |
+| `NOT_A_ROOM` | `deleteRoom` did not find that id in the roster, or the record's kind is not ROOM. Delete was not called. |
 | `MESSAGE_INVALID` | Text, session, message id, or attachment arrays failed validation. |
 | `SEND_UNCONFIRMED` | The send HTTP call failed. Do not automatically send again. |
 | `SEND_REFUSED` | HTTP succeeded and `delivery` was not a known acceptance. Integer `4` and `GROK_BOT_USER_MESSAGE_DELIVERY_REFUSED` are this case. |

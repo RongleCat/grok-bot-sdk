@@ -20,7 +20,7 @@
 | `agent.state` | A live or client snapshot for this bot and session | Read `snapshot`, `live`, and `client`. Rows for another bot are dropped. |
 | `computer.actions` | Computer-use actions for this bot | Read `actions`. Actions for another bot are dropped. |
 | `box.state` | The account box state arrived on this watch | Read `snapshot` and `state`. The frame has no agent id. |
-| `page.title.changed` | A canvas or document title changed on this watch | Read `storeId`, `canvasId` or `documentId`, `title`, and `changedAtMs`. |
+| `page.title.changed` | A canvas or document title changed on this watch | Read `storeId`, `canvasId` or `documentId`, `title`, `changedAtMs`, and `contentChanged`. |
 | `stream.closed` | SSE only. The iterator finished cleanly. | The watch ended. Open a new one to continue. |
 | `error` | SSE only. The iterator threw after headers were sent. | `data.code` is an `SDKError` code. |
 
@@ -74,4 +74,4 @@ Entries and deletes from a single transcript batch are sorted by `updatedSeq` us
 
 A generation change inside the batch yields `reset` and sets the cursor's `afterUpdatedSeq` back to `0` before the rows in that batch are applied.
 
-Frames for another `agentId` or `sessionId` are ignored. `agent.state` and `computer.actions` apply that filter to the rows inside the frame. `box.state` and `page.title.changed` have no agent id in 0.75.8, so they are yielded on the watch that received them.
+Frames for another `agentId` or `sessionId` are ignored. `agent.state` and `computer.actions` apply that filter to the rows inside the frame. `box.state` and `page.title.changed` have no agent id in 0.78.1, so they are yielded on the watch that received them. `box.state` also carries `imageTag`, `staticSnapshotPath`, `imageGitSha`, `staticSnapshotMatchesPin`, and `staticSnapshotPin`.

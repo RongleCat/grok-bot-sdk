@@ -21,6 +21,7 @@ class SDKError extends Error {
 | `INVALID_ROSTER_RESPONSE` | `ListGrokBotAgents` 没有返回 `agents` 数组。 |
 | `INVALID_BOT_RECORD` | 名单元素没有 `agentId`。 |
 | `BOT_ID_REQUIRED` | `botId` 为空、长于 128，或超出 `[A-Za-z0-9_-]`。 |
+| `NOT_A_ROOM` | `deleteRoom` 在名单里找不到这个 id，或该记录的 kind 不是 ROOM。没有调用删除。 |
 | `MESSAGE_INVALID` | 文本、会话、消息 ID 或附件数组没有通过校验。 |
 | `SEND_UNCONFIRMED` | 发送的 HTTP 调用失败。不要自动再发一次。 |
 | `SEND_REFUSED` | HTTP 成功，但 `delivery` 不是已知的接受结果。整数 `4` 和 `GROK_BOT_USER_MESSAGE_DELIVERY_REFUSED` 属于这种情况。 |

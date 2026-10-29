@@ -1,6 +1,6 @@
 # Avatar
 
-Algorithm version: `grok-bot-0.70.2`. Checked again in Grok Bot 0.75.8: the hash, salts, default shapes, and palette are unchanged. `pumpkin` is an extra explicit shape and is not chosen by the default hash.
+Algorithm version: `grok-bot-0.70.2`. Checked again in Grok Bot 0.75.8 and 0.78.1: the hash, salts, default shapes, and palette are unchanged. `pumpkin` is an extra explicit shape and is not chosen by the default hash.
 
 ```js
 import { deriveDefaultAvatar, resolveAgentAvatar } from 'grok-bot-sdk'

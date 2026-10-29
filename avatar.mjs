@@ -1,5 +1,5 @@
-// Parameter derivation verified against Grok Bot 0.70.2 and again against 0.75.8.
-// 0.75.8 keeps the same hash, salts, default shapes, and palette. It adds one
+// Parameter derivation verified against Grok Bot 0.70.2, 0.75.8, and 0.78.1.
+// 0.78.1 keeps the same hash, salts, default shapes, and palette. 0.75.8 adds one
 // explicit shape, pumpkin, behind the sand_pumpkin_2026 picker gate. Pumpkin is
 // not part of the default hash set. This module does not load or execute the
 // official renderer or its assets.

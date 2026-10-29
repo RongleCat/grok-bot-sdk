@@ -1,6 +1,6 @@
 # Notes
 
-Checked against Grok Bot **0.75.8**. A newer client can change paths, headers, enums, and the avatar salt. Pass `version` when you are matching a specific build. The default string is `0.75.8`. The avatar hash string remains `grok-bot-0.70.2` because that derivation did not change.
+Checked against Grok Bot **0.78.1**. A newer client can change paths, headers, enums, and the avatar salt. Pass `version` when you are matching a specific build. The default string is `0.78.1`. The avatar hash string remains `grok-bot-0.70.2` because that derivation did not change.
 
 ## Identity of the library
 

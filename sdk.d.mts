@@ -31,6 +31,7 @@ export interface Bot {
   ownerDisplayName: string;
   draftingDisabled: boolean;
   accessGrantsOnly: boolean;
+  accessOwnerOnly: boolean;
   memberAgentIds: string[];
   viewerAllowedActions: string[];
   createdAtMs: string | null;
@@ -118,6 +119,7 @@ export interface AgentClientState {
   updatedAtMs: string | null;
   lastMessageTaskId: string;
   removedFromSidebar: boolean;
+  unreadThreadCount: number;
 }
 export interface AgentStatus {
   agentId: string;
@@ -136,6 +138,7 @@ export interface AgentTask {
   unreadAtMs: string | null;
   pinnedAtMs: string | null;
   subagentIds: string[];
+  followed: boolean;
 }
 export interface BotTask {
   id: string;
@@ -168,6 +171,153 @@ export interface AgentSkill {
   body: string;
   source: string;
 }
+export interface PluginSkill {
+  name: string;
+  description: string;
+  sourcePath: string;
+  sourceUrl: string | null;
+  content: string;
+  environments: string[];
+}
+export interface AgentMarketplace {
+  marketplaceId: string;
+  displayName: string;
+  description: string;
+}
+export interface AgentPlugin {
+  pluginId: string;
+  name: string;
+  displayName: string;
+  description: string;
+  logoUrl: string | null;
+  ownedByMarketplace: boolean;
+  installMode: string;
+  variableNames: string[];
+  isDeprecated: boolean;
+  mcpConfigJson: string | null;
+  skills: PluginSkill[];
+  mcpServerNames: string[];
+  isBotSkills: boolean;
+  connectorType: string;
+  variablesJson: string | null;
+  hasConfiguredVariables: boolean;
+  credentialSource: string;
+  delegatedCredential: DelegatedCredential | null;
+  credentialAllowedActions: string[];
+  supportsServiceAccount: boolean;
+}
+export interface DelegatedCredential {
+  delegatorDisplayName: string;
+  delegatorAvatarUrl: string | null;
+  delegatorIsViewer: boolean;
+  state: string;
+  /** RFC 3339 timestamp from `google.protobuf.Timestamp`, or null. */
+  attachedAt: string | null;
+}
+export interface CustomMcpHttp {
+  url: string;
+  headerNames: string[];
+  hasOauthClientId: boolean;
+  hasOauthClientSecret: boolean;
+}
+export interface CustomMcpStdio {
+  command: string;
+  args: string[];
+  hasEnv: boolean;
+}
+export interface CustomMcpServer {
+  pluginId: string;
+  name: string;
+  http: CustomMcpHttp | null;
+  stdio: CustomMcpStdio | null;
+}
+export interface AgentAccessInvite {
+  email: string;
+  expiresAtMs: string | null;
+  lastSharedAtMs: string | null;
+  createdAtMs: string | null;
+}
+export interface InviteCapUsage {
+  used: number;
+  limit: number;
+}
+export interface AccessInviteBot {
+  agentId: string;
+  name: string;
+  avatarUrl: string | null;
+  avatarShape: string;
+  avatarColor: string;
+}
+export interface AccessInviteSender {
+  displayName: string;
+  avatarUrl: string | null;
+}
+export interface AccessInvitePreviewItem {
+  inviteId: string;
+  bot: AccessInviteBot | null;
+  role: string;
+  state: string;
+  expiresAtMs: string | null;
+}
+export interface AccessInviteEligibility {
+  eligible: boolean;
+  reason: string;
+  currentTier: string;
+}
+export interface AccessInvitePreview {
+  found: boolean;
+  recipientMatch: string;
+  sender: AccessInviteSender | null;
+  invites: AccessInvitePreviewItem[];
+  truncated: boolean;
+  otherResourceInviteCount: number;
+  eligibility: AccessInviteEligibility | null;
+}
+export interface SkillWriteResult {
+  marketplace: AgentMarketplace;
+  plugins: AgentPlugin[];
+  skill: PluginSkill;
+}
+export interface CreateRoomOptions {
+  name: string;
+  memberAgentIds: string[];
+  description?: string;
+  humanMemberUserIds?: number[];
+  agentId?: string;
+}
+export type HarnessKind = 'UNSPECIFIED' | 'BOX' | 'TEMPORAL' | 0 | 1 | 2;
+export type CreateIntent = 'UNSPECIFIED' | 'FRESH' | 'REGISTER_EXISTING_LOCAL' | 0 | 1 | 2;
+export type CreateCaller = 'UNSPECIFIED' | 'ROOM_MEMBERS' | 'ENSURE_SERVER_BACKED' | 'MINT' | 'BACKFILL' | 'PRODUCT_CREATE' | 0 | 1 | 2 | 3 | 4 | 5;
+export interface CreateBotOptions {
+  name: string;
+  description?: string;
+  title?: string;
+  avatarShape?: string;
+  avatarColor?: string;
+  avatarDataUrl?: string;
+  agentId?: string;
+  harness?: HarnessKind;
+  kickstartRequested?: boolean;
+  introductionSuppressed?: boolean;
+  purpose?: string;
+  origin?: string;
+  language?: string;
+  createIntent?: CreateIntent;
+  createCaller?: CreateCaller;
+  createdAutomatically?: boolean;
+  legacyAgentId?: string;
+}
+export interface UpdateBotOptions {
+  /** `Bot.serverId` (`GrokBotAgent.id`), not `Bot.id`. */
+  id: string;
+  name?: string;
+  description?: string;
+  title?: string;
+  avatarShape?: string;
+  avatarColor?: string;
+  avatarDataUrl?: string;
+  clearAvatar?: boolean;
+}
 export interface RuntimeCapabilities {
   durableIdentityEnabled: boolean;
   durableIdentityWritesEnabled: boolean;
@@ -193,6 +343,11 @@ export interface BoxState {
   hostUpdateAvailable: boolean;
   diskPressure: string;
   updatedAtMs: string | null;
+  imageTag: string | null;
+  staticSnapshotPath: string | null;
+  imageGitSha: string | null;
+  staticSnapshotMatchesPin: boolean;
+  staticSnapshotPin: string | null;
 }
 export interface ComputerAction {
   agentId: string;
@@ -236,7 +391,7 @@ export type BotEvent =
   | { type: 'agent.state'; data: { botId: string; sessionId: string; snapshot: boolean; live: AgentLiveState[]; client: AgentClientState[] } }
   | { type: 'computer.actions'; data: { botId: string; actions: ComputerAction[] } }
   | { type: 'box.state'; data: { botId: string; snapshot: boolean; state: BoxState | null } }
-  | { type: 'page.title.changed'; data: { botId: string; storeId: string; canvasId: string | null; documentId: string | null; title: string; changedAtMs: string | null } };
+  | { type: 'page.title.changed'; data: { botId: string; storeId: string; canvasId: string | null; documentId: string | null; title: string; changedAtMs: string | null; contentChanged: boolean } };
 export interface SendOptions {
   botId: string;
   text: string;
@@ -250,6 +405,8 @@ export interface SendOptions {
   language?: string;
   richText?: string;
   machineId?: string;
+  /** Sent only when `true`. `false` is omitted, matching the 0.78.1 desktop client. */
+  rendersMcpElicitationForms?: boolean;
 }
 export interface TranscriptQuery {
   botId: string;
@@ -271,9 +428,9 @@ export class GrokBotClient {
   listBots(options?: { includeTeamAgents?: boolean; role?: string; addedTeamAgentsOnly?: boolean }): Promise<{ bots: Bot[]; truncated: boolean; slackConnections: SlackConnection[]; teamsConnections: TeamsConnection[] }>;
   sendMessage(options: SendOptions): Promise<{ botId: string; messageId: string; delivery: 'accepted-box' | 'accepted-temporal' | 'duplicate'; dispatched: boolean }>;
   listSessions(botId: string): Promise<{ sessions: BotSession[] }>;
-  listTranscript(options: TranscriptQuery): Promise<{ generation: number; entries: TranscriptEntry[]; cloudAgentPeerIds: string[]; cloudAgentPeerIdsKnown: boolean; unreadAnchor: UnreadAnchor | null }>;
+  listTranscript(options: TranscriptQuery): Promise<{ generation: number; entries: TranscriptEntry[]; cloudAgentPeerIds: string[]; cloudAgentPeerIdsKnown: boolean; unreadAnchor: UnreadAnchor | null; updatedSeqLocked: boolean }>;
   listAgentStatuses(agentIds?: string[]): Promise<{ statuses: AgentStatus[] }>;
-  getSendStatus(options: { botId: string; messageId: string; sessionId?: string; firstSentAgeMs?: string }): Promise<{ status: string; echoEntryId: string | null; rejectionCode: string | null; acceptedAtMs: string | null }>;
+  getSendStatus(options: { botId: string; messageId: string; sessionId?: string; firstSentAgeMs?: string; taskId?: string }): Promise<{ status: string; echoEntryId: string | null; rejectionCode: string | null; acceptedAtMs: string | null }>;
   listAgentTasks(options: { botId: string; includeRecentlyDone?: boolean }): Promise<{ tasks: AgentTask[] }>;
   listTasks(options: { botId: string; sessionId?: string }): Promise<{ tasks: BotTask[] }>;
   listSubagents(botId: string): Promise<{ subagents: RunningSubagent[] }>;
@@ -282,6 +439,27 @@ export class GrokBotClient {
   listDeletedAgentIds(agentIds?: string[]): Promise<{ agentIds: string[] }>;
   getRuntimeCapabilities(): Promise<RuntimeCapabilities>;
   getSandBoxRunState(): Promise<SandBoxRunState>;
+  /** Reads one custom MCP server. `pluginId` is the int64 plugin id, sent as a decimal string. */
+  getAgentCustomMcp(options: { botId: string; pluginId: string | number }): Promise<{ server: CustomMcpServer }>;
+  listAgentAccessInvites(botId: string): Promise<{ invites: AgentAccessInvite[]; capUsage: InviteCapUsage }>;
+  previewAgentAccessInvite(code: string): Promise<AccessInvitePreview>;
+  /** Irreversible. Deletes the bot or room with this agent id (`Bot.id`). */
+  deleteBot(botId: string): Promise<{ id: string }>;
+  /** Irreversible. Deletes a room only after the roster shows this id with kind ROOM. */
+  deleteRoom(roomId: string): Promise<{ id: string }>;
+  createRoom(options: CreateRoomOptions): Promise<{ bot: Bot }>;
+  addRoomMembers(options: { roomId: string; userIds: number[] }): Promise<{ bot: Bot }>;
+  /** Irreversible. Removes human members. No agent in the response returns `{ bot: null }`. */
+  removeRoomMembers(options: { roomId: string; userIds: number[] }): Promise<{ bot: Bot | null }>;
+  /** Irreversible. Replaces the room's bot members, including with an empty list. */
+  setRoomMembers(options: { roomId: string; memberAgentIds: string[] }): Promise<{ bot: Bot }>;
+  createBot(options: CreateBotOptions): Promise<{ bot: Bot; harness: string }>;
+  /** Updates name, description, title, or avatar. `id` is `Bot.serverId`. `partialUpdate` is always true. */
+  updateBot(options: UpdateBotOptions): Promise<{ bot: Bot }>;
+  addAgentSkill(options: { botId: string; content: string; name?: string; description?: string }): Promise<SkillWriteResult>;
+  updateAgentSkill(options: { botId: string; name: string; content: string; description?: string }): Promise<SkillWriteResult>;
+  /** Irreversible. Removes one skill by name. */
+  removeAgentSkill(options: { botId: string; name: string }): Promise<Omit<SkillWriteResult, 'skill'>>;
   watchBot(options: WatchOptions): AsyncGenerator<BotEvent, void, unknown>;
   botEventsSSE(options: WatchOptions & { keepAliveMs?: number }): Response;
 }

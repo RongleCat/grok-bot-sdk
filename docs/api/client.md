@@ -15,7 +15,7 @@ interface ClientOptions {
 | Option | Required | Behavior |
 |---|---|---|
 | `accessToken` | yes | Sent as `Authorization: Bearer`. An empty string throws `MISSING_ACCESS_TOKEN`. |
-| `version` | no | `x-cursor-client-version`. Default `0.75.8`. |
+| `version` | no | `x-cursor-client-version`. Default `0.78.1`. |
 | `machineId` | no | When set, adds `x-cursor-checksum`. |
 | `teamId` | no | When set, adds `x-cursor-team-id`. |
 | `fetchImpl` | no | Replaces global `fetch`. |
@@ -113,7 +113,7 @@ sendMessage(options: SendOptions): Promise<{
 
 A failed HTTP call throws `SEND_UNCONFIRMED`. A body whose `delivery` is outside the known acceptance set throws `SEND_REFUSED`. Known acceptances are the integers `1`, `2`, `3` and the enum names `GROK_BOT_USER_MESSAGE_DELIVERY_ACCEPTED_BOX`, `GROK_BOT_USER_MESSAGE_DELIVERY_ACCEPTED_TEMPORAL`, and `GROK_BOT_USER_MESSAGE_DELIVERY_DUPLICATE`. Integer `4` and `GROK_BOT_USER_MESSAGE_DELIVERY_REFUSED` are a refusal and throw `SEND_REFUSED`.
 
-The request also sends `sentAtMs` as a decimal string of `Date.now()`, plus `isFork: false`, `source: 1` (`DESKTOP`), `initiator: 1` (`USER`), and `sendSource: 1` (`CHAT`). Those are the 0.75.8 desktop chat values. Optional reply, task, language, rich text, and machine id fields are sent only when you pass them. An empty optional string throws `MESSAGE_INVALID`. `richText` may be an empty string.
+The request also sends `sentAtMs` as a decimal string of `Date.now()`, plus `isFork: false`, `source: 1` (`DESKTOP`), `initiator: 1` (`USER`), and `sendSource: 1` (`CHAT`). Those are the 0.78.1 desktop chat values. Optional reply, task, language, rich text, and machine id fields are sent only when you pass them. `rendersMcpElicitationForms: true` is sent only when you pass `true`; `false` is omitted. An empty optional string throws `MESSAGE_INVALID`. `richText` may be an empty string.
 
 ## Read methods added for 0.75.8
 
@@ -122,10 +122,10 @@ Each method throws `RPC_FAILED` when the HTTP call fails or the expected array o
 | Method | Call |
 |---|---|
 | `listSessions(botId)` | `{ sessions }` from `ListGrokBotAgentSessions` |
-| `listTranscript({ botId, sessionId?, limit?, generation?, beforeSeq?, unreadBoundaryMs? })` | `{ generation, entries, cloudAgentPeerIds, cloudAgentPeerIdsKnown, unreadAnchor }`. `limit` defaults to 50. |
-| `listAgentStatuses(agentIds?)` | `{ statuses }` with `live` and `client` scalar fields |
-| `getSendStatus({ botId, messageId, sessionId?, firstSentAgeMs? })` | `{ status, echoEntryId, rejectionCode, acceptedAtMs }`. Known statuses are `unspecified`, `not-found`, `accepted`, `rejected`, `pending`, and `unknown-durability`. |
-| `listAgentTasks({ botId, includeRecentlyDone? })` | `{ tasks }` |
+| `listTranscript({ botId, sessionId?, limit?, generation?, beforeSeq?, unreadBoundaryMs? })` | `{ generation, entries, cloudAgentPeerIds, cloudAgentPeerIdsKnown, unreadAnchor, updatedSeqLocked }`. `limit` defaults to 50. |
+| `listAgentStatuses(agentIds?)` | `{ statuses }` with `live` and `client` scalar fields, including `client.unreadThreadCount` |
+| `getSendStatus({ botId, messageId, sessionId?, firstSentAgeMs?, taskId? })` | `{ status, echoEntryId, rejectionCode, acceptedAtMs }`. `taskId` is sent only when set. Known statuses are `unspecified`, `not-found`, `accepted`, `rejected`, `pending`, and `unknown-durability`. |
+| `listAgentTasks({ botId, includeRecentlyDone? })` | `{ tasks }`, including `followed` |
 | `listTasks({ botId, sessionId? })` | `{ tasks }` for one session. `sessionId` defaults to `''`. |
 | `listSubagents(botId)` | `{ subagents }` |
 | `listAgentTodos(botId)` | `{ todos }` |
@@ -135,6 +135,40 @@ Each method throws `RPC_FAILED` when the HTTP call fails or the expected array o
 | `getSandBoxRunState()` | `{ runState, imageUpdateAvailable, egressTunnelOwnership, image }`. `runState` is `unspecified`, `absent`, `hibernated`, `running`, or `starting` when the enum is known. |
 
 `listTranscript` throws `CURSOR_INVALID` for a bad session, limit, generation, or sequence. `getSendStatus` throws `MESSAGE_INVALID` when `messageId` is empty. These reads do not send a chat message. `getSendStatus` only asks whether an earlier send was accepted.
+
+`Bot.accessOwnerOnly` comes from `GrokBotAgent.accessOwnerOnly`. A missing value is `false`.
+
+## Reads added for 0.78.1
+
+| Method | Call |
+|---|---|
+| `getAgentCustomMcp({ botId, pluginId })` | `GetGrokBotAgentCustomMcp`. `pluginId` is a non-negative int64, sent as a decimal string. Returns `{ server }` with `http` and `stdio`. Only one transport is set by the server. The read returns header names and `hasOauthClientId` / `hasOauthClientSecret`, not header values or secrets. A missing server throws `RPC_FAILED`. |
+| `listAgentAccessInvites(botId)` | `ListGrokBotAgentAccessInvites`. Returns `{ invites, capUsage }`. |
+| `previewAgentAccessInvite(code)` | `PreviewGrokBotAgentAccessInvite`. Returns the proto fields: `found`, `recipientMatch`, `sender`, `invites`, `truncated`, `otherResourceInviteCount`, and `eligibility`. An empty code throws `MESSAGE_INVALID`. |
+
+## Management writes
+
+These call `GrokBotService` write RPCs. A failed HTTP call, or a response that is missing the agent or skill record the method requires, throws `RPC_FAILED`. `botId`, `roomId`, and member agent ids use the same shape as `sendMessage` and otherwise throw `BOT_ID_REQUIRED`. Bad text, user ids, or enums throw `MESSAGE_INVALID`.
+
+`roomId` is `Bot.id`. A room's `kind` is `ROOM`, `GROK_BOT_AGENT_KIND_ROOM`, or `2`.
+
+| Method | Call | Destructive |
+|---|---|---|
+| `deleteBot(botId)` | `DeleteGrokBotAgent` with `{id: botId}`. Returns `{id}`. The response message is empty. | Irreversible |
+| `deleteRoom(roomId)` | Lists the roster, then deletes only when that id is present and its kind is ROOM. Otherwise throws `NOT_A_ROOM` and does not delete. | Irreversible |
+| `createRoom({name, memberAgentIds, description?, humanMemberUserIds?, agentId?})` | `CreateGrokBotRoom`. `agentId` defaults to a new UUID. `description` defaults to `''`. `humanMemberUserIds` are int32 user ids and default to `[]`. Returns `{bot}` only when the server echoes the same id and a ROOM kind. | No |
+| `addRoomMembers({roomId, userIds})` | `AddGrokBotRoomPeople`. Returns `{bot}`. | No |
+| `removeRoomMembers({roomId, userIds})` | `RemoveGrokBotRoomPeople`. Returns `{bot: null}` when the response has no agent. | Irreversible |
+| `setRoomMembers({roomId, memberAgentIds})` | `SetGrokBotRoomMembers`. Replaces bot members. An empty array is sent as an empty array. | Irreversible |
+| `createBot({name, ...})` | `CreateGrokBotAgent`. Always sends `agentId`, `name`, `description`, `title`, `avatarShape`, and `avatarColor` (`description`, `title`, and avatar strings default to `''`). Optional: `legacyAgentId`, `avatarDataUrl`, `harness` (`UNSPECIFIED`, `BOX`, `TEMPORAL`, or `0`/`1`/`2`), `kickstartRequested`, `introductionSuppressed`, `purpose`, `origin`, `language`, `createIntent`, `createCaller`, `createdAutomatically`. Returns `{bot, harness}`. | No |
+| `updateBot({id, name?, description?, title?, avatarShape?, avatarColor?, avatarDataUrl?, clearAvatar?})` | `UpdateGrokBotAgent`. `id` is `Bot.serverId` (`GrokBotAgent.id`), not `Bot.id`. `partialUpdate` is always `true`. Omitted text fields are not sent. `clearAvatar: true` sends `clearAvatar: {}`. Combining it with `avatarDataUrl` throws `MESSAGE_INVALID`. At least one change is required. | No |
+| `addAgentSkill({botId, content, name?, description?})` | `AddGrokBotAgentSkill`. `content` may be empty. Returns `{marketplace, plugins, skill}`. | No |
+| `updateAgentSkill({botId, name, content, description?})` | `UpdateGrokBotAgentSkill`. | No |
+| `removeAgentSkill({botId, name})` | `RemoveGrokBotAgentSkill`. Returns `{marketplace, plugins}` and no skill. | Irreversible |
+
+The desktop client creates temporal bots with `CreateGrokBotTemporalAgent`, which shares this request message. `createBot` calls `CreateGrokBotAgent`. Skill IPC `files` are not a field on these three skill requests, so this SDK does not send them. The skill record on a write is `GrokBotAgentPluginSkill` (`name`, `description`, `sourcePath`, `sourceUrl`, `content`, `environments`), not the `GrokBotAgentSkill` shape returned by `listAgentSkills`. A plugin on that response also includes `credentialSource`, `delegatedCredential`, `credentialAllowedActions`, and `supportsServiceAccount`. `delegatedCredential.attachedAt` is an RFC 3339 timestamp string.
+
+There is no restore, undelete, or recover RPC for a deleted agent in the 0.78.1 proto. `deleteBot` and `deleteRoom` cannot be undone through this package.
 
 ## `watchBot(options): AsyncGenerator<BotEvent>`
 

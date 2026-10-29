@@ -20,7 +20,7 @@
 | `agent.state` | 这个 Bot 和会话的 live 或 client 快照 | 读取 `snapshot`、`live` 和 `client`。另一个 Bot 的行会被丢掉。 |
 | `computer.actions` | 这个 Bot 的电脑操作 | 读取 `actions`。另一个 Bot 的操作会被丢掉。 |
 | `box.state` | 这次订阅收到了账号沙箱状态 | 读取 `snapshot` 和 `state`。这一帧没有 agent id。 |
-| `page.title.changed` | 这次订阅里画布或文档标题变了 | 读取 `storeId`、`canvasId` 或 `documentId`、`title` 和 `changedAtMs`。 |
+| `page.title.changed` | 这次订阅里画布或文档标题变了 | 读取 `storeId`、`canvasId` 或 `documentId`、`title`、`changedAtMs` 和 `contentChanged`。 |
 | `stream.closed` | 仅 SSE。迭代器正常结束。 | 订阅结束。要继续就再开一条。 |
 | `error` | 仅 SSE。响应头发出之后迭代器抛错。 | `data.code` 是 `SDKError` 的代码。 |
 
@@ -74,4 +74,4 @@ x-accel-buffering: no
 
 这一批内部若代际变化，会先产出 `reset`，并把游标的 `afterUpdatedSeq` 设回 `0`，再应用这一批里的行。
 
-属于另一个 `agentId` 或 `sessionId` 的帧会被忽略。`agent.state` 和 `computer.actions` 把这个过滤用在帧内的行上。0.75.8 的 `box.state` 和 `page.title.changed` 没有 agent id，所以收到它们的那次订阅会把事件产出。
+属于另一个 `agentId` 或 `sessionId` 的帧会被忽略。`agent.state` 和 `computer.actions` 把这个过滤用在帧内的行上。0.78.1 的 `box.state` 和 `page.title.changed` 没有 agent id，所以收到它们的那次订阅会把事件产出。`box.state` 还带 `imageTag`、`staticSnapshotPath`、`imageGitSha`、`staticSnapshotMatchesPin` 和 `staticSnapshotPin`。

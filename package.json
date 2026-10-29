@@ -1,7 +1,7 @@
 {
   "name": "grok-bot-sdk",
-  "version": "0.75.8",
-  "description": "Unofficial Node.js SDK for the Grok Bot 0.75.8 desktop client protocol: login, roster, sessions, transcript, tasks, send, and Connect-to-SSE replies.",
+  "version": "0.78.1",
+  "description": "Unofficial Node.js SDK for the Grok Bot 0.78.1 desktop client protocol: login, roster, sessions, transcript, tasks, send, and Connect-to-SSE replies.",
   "license": "MIT",
   "type": "module",
   "author": "RongleCat (铁柱AGI)",

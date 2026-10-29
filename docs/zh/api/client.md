@@ -15,7 +15,7 @@ interface ClientOptions {
 | 选项 | 是否必须 | 行为 |
 |---|---|---|
 | `accessToken` | 必须 | 作为 `Authorization: Bearer` 发送。空字符串抛出 `MISSING_ACCESS_TOKEN`。 |
-| `version` | 可选 | `x-cursor-client-version`。默认 `0.75.8`。 |
+| `version` | 可选 | `x-cursor-client-version`。默认 `0.78.1`。 |
 | `machineId` | 可选 | 有值时增加 `x-cursor-checksum`。 |
 | `teamId` | 可选 | 有值时增加 `x-cursor-team-id`。 |
 | `fetchImpl` | 可选 | 替换全局 `fetch`。 |
@@ -113,7 +113,7 @@ sendMessage(options: SendOptions): Promise<{
 
 HTTP 失败抛出 `SEND_UNCONFIRMED`。响应体里的 `delivery` 不在已知接受集合中时抛出 `SEND_REFUSED`。已知接受是整数 `1`、`2`、`3`，以及枚举名 `GROK_BOT_USER_MESSAGE_DELIVERY_ACCEPTED_BOX`、`GROK_BOT_USER_MESSAGE_DELIVERY_ACCEPTED_TEMPORAL`、`GROK_BOT_USER_MESSAGE_DELIVERY_DUPLICATE`。整数 `4` 和 `GROK_BOT_USER_MESSAGE_DELIVERY_REFUSED` 是拒绝，抛出 `SEND_REFUSED`。
 
-请求还会发送 `sentAtMs`，它是 `Date.now()` 的十进制字符串，以及 `isFork: false`、`source: 1`（`DESKTOP`）、`initiator: 1`（`USER`）、`sendSource: 1`（`CHAT`）。这三个整数是 0.75.8 桌面聊天使用的值。回复、任务、语言、富文本和 machine id 只有调用方传入时才发送。可选字符串为空时抛出 `MESSAGE_INVALID`。`richText` 可以是空字符串。
+请求还会发送 `sentAtMs`，它是 `Date.now()` 的十进制字符串，以及 `isFork: false`、`source: 1`（`DESKTOP`）、`initiator: 1`（`USER`）、`sendSource: 1`（`CHAT`）。这三个整数是 0.78.1 桌面聊天使用的值。回复、任务、语言、富文本和 machine id 只有调用方传入时才发送。`rendersMcpElicitationForms: true` 只有传入 `true` 时才发送；`false` 不发送。可选字符串为空时抛出 `MESSAGE_INVALID`。`richText` 可以是空字符串。
 
 ## 为 0.75.8 增加的只读方法
 
@@ -122,10 +122,10 @@ HTTP 失败，或响应里缺少预期的数组或对象时，这些方法抛出
 | 方法 | 调用 |
 |---|---|
 | `listSessions(botId)` | `ListGrokBotAgentSessions`，返回 `{ sessions }` |
-| `listTranscript({ botId, sessionId?, limit?, generation?, beforeSeq?, unreadBoundaryMs? })` | 返回 `{ generation, entries, cloudAgentPeerIds, cloudAgentPeerIdsKnown, unreadAnchor }`。`limit` 默认 50。 |
-| `listAgentStatuses(agentIds?)` | 返回 `{ statuses }`，含 `live` 和 `client` 的标量字段 |
-| `getSendStatus({ botId, messageId, sessionId?, firstSentAgeMs? })` | 返回 `{ status, echoEntryId, rejectionCode, acceptedAtMs }`。已知状态是 `unspecified`、`not-found`、`accepted`、`rejected`、`pending`、`unknown-durability`。 |
-| `listAgentTasks({ botId, includeRecentlyDone? })` | 返回 `{ tasks }` |
+| `listTranscript({ botId, sessionId?, limit?, generation?, beforeSeq?, unreadBoundaryMs? })` | 返回 `{ generation, entries, cloudAgentPeerIds, cloudAgentPeerIdsKnown, unreadAnchor, updatedSeqLocked }`。`limit` 默认 50。 |
+| `listAgentStatuses(agentIds?)` | 返回 `{ statuses }`，含 `live` 和 `client` 的标量字段，包括 `client.unreadThreadCount` |
+| `getSendStatus({ botId, messageId, sessionId?, firstSentAgeMs?, taskId? })` | 返回 `{ status, echoEntryId, rejectionCode, acceptedAtMs }`。只有传入 `taskId` 时才发送它。已知状态是 `unspecified`、`not-found`、`accepted`、`rejected`、`pending`、`unknown-durability`。 |
+| `listAgentTasks({ botId, includeRecentlyDone? })` | 返回 `{ tasks }`，含 `followed` |
 | `listTasks({ botId, sessionId? })` | 一个会话的 `{ tasks }`。`sessionId` 默认 `''`。 |
 | `listSubagents(botId)` | 返回 `{ subagents }` |
 | `listAgentTodos(botId)` | 返回 `{ todos }` |
@@ -135,6 +135,40 @@ HTTP 失败，或响应里缺少预期的数组或对象时，这些方法抛出
 | `getSandBoxRunState()` | 返回 `{ runState, imageUpdateAvailable, egressTunnelOwnership, image }`。已知 `runState` 是 `unspecified`、`absent`、`hibernated`、`running`、`starting`。 |
 
 `listTranscript` 在会话、limit、generation 或序号不合法时抛出 `CURSOR_INVALID`。`getSendStatus` 在 `messageId` 为空时抛出 `MESSAGE_INVALID`。这些读取不会发送聊天消息。`getSendStatus` 只询问先前那次发送是否被接受。
+
+`Bot.accessOwnerOnly` 来自 `GrokBotAgent.accessOwnerOnly`。字段缺失时是 `false`。
+
+## 为 0.78.1 增加的只读方法
+
+| 方法 | 调用 |
+|---|---|
+| `getAgentCustomMcp({ botId, pluginId })` | `GetGrokBotAgentCustomMcp`。`pluginId` 是非负 int64，以十进制字符串发送。返回 `{ server }`，带 `http` 和 `stdio`。服务端只会设置其中一种传输。这次读取返回 header 名称和 `hasOauthClientId` / `hasOauthClientSecret`，不返回 header 的值，也不返回密钥。响应没有 server 时抛出 `RPC_FAILED`。 |
+| `listAgentAccessInvites(botId)` | `ListGrokBotAgentAccessInvites`。返回 `{ invites, capUsage }`。 |
+| `previewAgentAccessInvite(code)` | `PreviewGrokBotAgentAccessInvite`。返回 proto 字段：`found`、`recipientMatch`、`sender`、`invites`、`truncated`、`otherResourceInviteCount`、`eligibility`。空的 code 抛出 `MESSAGE_INVALID`。 |
+
+## 管理类写接口
+
+这些方法调用 `GrokBotService` 的写 RPC。HTTP 失败，或响应里缺少该方法要求的 agent / skill 记录时，抛出 `RPC_FAILED`。`botId`、`roomId` 和成员 agent id 的形状与 `sendMessage` 相同，否则抛出 `BOT_ID_REQUIRED`。文本、用户 id 或枚举不合法时抛出 `MESSAGE_INVALID`。
+
+`roomId` 是 `Bot.id`。群组的 `kind` 是 `ROOM`、`GROK_BOT_AGENT_KIND_ROOM` 或 `2`。
+
+| 方法 | 调用 | 破坏性 |
+|---|---|---|
+| `deleteBot(botId)` | `DeleteGrokBotAgent`，请求体 `{id: botId}`。返回 `{id}`。响应 message 没有字段。 | 不可撤销 |
+| `deleteRoom(roomId)` | 先拉名单，只有该 id 存在且 kind 是 ROOM 时才删除。否则抛出 `NOT_A_ROOM`，不会删除。 | 不可撤销 |
+| `createRoom({name, memberAgentIds, description?, humanMemberUserIds?, agentId?})` | `CreateGrokBotRoom`。`agentId` 默认是新的 UUID。`description` 默认 `''`。`humanMemberUserIds` 是 int32 用户 id，默认 `[]`。只有服务端回显同一个 id，并且 kind 是 ROOM 时才返回 `{bot}`。 | 否 |
+| `addRoomMembers({roomId, userIds})` | `AddGrokBotRoomPeople`。返回 `{bot}`。 | 否 |
+| `removeRoomMembers({roomId, userIds})` | `RemoveGrokBotRoomPeople`。响应没有 agent 时返回 `{bot: null}`。 | 不可撤销 |
+| `setRoomMembers({roomId, memberAgentIds})` | `SetGrokBotRoomMembers`。替换 Bot 成员。空数组会原样发送。 | 不可撤销 |
+| `createBot({name, ...})` | `CreateGrokBotAgent`。总会发送 `agentId`、`name`、`description`、`title`、`avatarShape`、`avatarColor`（`description`、`title` 和头像字符串默认 `''`）。可选：`legacyAgentId`、`avatarDataUrl`、`harness`（`UNSPECIFIED`、`BOX`、`TEMPORAL`，或 `0`/`1`/`2`）、`kickstartRequested`、`introductionSuppressed`、`purpose`、`origin`、`language`、`createIntent`、`createCaller`、`createdAutomatically`。返回 `{bot, harness}`。 | 否 |
+| `updateBot({id, name?, description?, title?, avatarShape?, avatarColor?, avatarDataUrl?, clearAvatar?})` | `UpdateGrokBotAgent`。`id` 是 `Bot.serverId`（`GrokBotAgent.id`），不是 `Bot.id`。`partialUpdate` 总是 `true`。没传的文本字段不会发送。`clearAvatar: true` 发送 `clearAvatar: {}`。它和 `avatarDataUrl` 同时出现会抛出 `MESSAGE_INVALID`。至少要有一项修改。 | 否 |
+| `addAgentSkill({botId, content, name?, description?})` | `AddGrokBotAgentSkill`。`content` 可以是空字符串。返回 `{marketplace, plugins, skill}`。 | 否 |
+| `updateAgentSkill({botId, name, content, description?})` | `UpdateGrokBotAgentSkill`。 | 否 |
+| `removeAgentSkill({botId, name})` | `RemoveGrokBotAgentSkill`。返回 `{marketplace, plugins}`，没有 skill。 | 不可撤销 |
+
+桌面客户端创建 Temporal Bot 时调用的是 `CreateGrokBotTemporalAgent`，请求 message 与这里相同。`createBot` 调用的是 `CreateGrokBotAgent`。技能 IPC 上的 `files` 不是这三条技能请求的字段，这个 SDK 不发送它。写接口返回的 skill 是 `GrokBotAgentPluginSkill`（`name`、`description`、`sourcePath`、`sourceUrl`、`content`、`environments`），不是 `listAgentSkills` 返回的 `GrokBotAgentSkill`。这条响应里的 plugin 还包含 `credentialSource`、`delegatedCredential`、`credentialAllowedActions` 和 `supportsServiceAccount`。`delegatedCredential.attachedAt` 是 RFC 3339 时间字符串。
+
+0.78.1 的 proto 里没有恢复已删除 agent 的 `Restore`、`Undelete` 或 `Recover` RPC。`deleteBot` 和 `deleteRoom` 不能通过这个包撤销。
 
 ## `watchBot(options): AsyncGenerator<BotEvent>`
 

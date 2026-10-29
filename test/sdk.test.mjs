@@ -106,16 +106,18 @@ test('roster updates cannot embed a different Bot inside the selected scope',asy
  assert.deepEqual(events.filter(e=>e.type==='bot.updated').map(e=>e.data.bot.id),[uuid]);
 });
 
-test('default client version is 0.75.8 and roster options stay off the wire until set',async()=>{
+test('default client version is 0.78.1 and roster options stay off the wire until set',async()=>{
  feature();let headers,body;
- const client=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async(url,init)=>{headers=init.headers;body=JSON.parse(init.body);return new Response(JSON.stringify({authId:'account',agents:[{agentId:uuid,kind:1,role:'main',createdAtMs:'10',slackConnections:[]}],truncated:false,slackConnections:[{agentId:uuid,connected:true,workspaceName:'kept-out'}],teamsConnections:[{agentId:uuid,installState:'GROK_BOT_TEAMS_INSTALL_STATE_INSTALLED',installedTeamCount:1,installedTeams:[{teamId:'t',displayName:'Team',rscGranted:true,installedAtMs:'4'}]}]}),{status:200});}});
- await client.getMe();
- assert.equal(headers['x-cursor-client-version'],'0.75.8');
- assert.match(headers['user-agent'],/Sand\/0\.75\.8/);
+ const client=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async(url,init)=>{headers=init.headers;body=JSON.parse(init.body);return new Response(JSON.stringify({authId:'account',emailIsSynthetic:true,agents:[{agentId:uuid,kind:1,role:'main',createdAtMs:'10',accessOwnerOnly:true,slackConnections:[]}],truncated:false,slackConnections:[{agentId:uuid,connected:true,workspaceName:'kept-out'}],teamsConnections:[{agentId:uuid,installState:'GROK_BOT_TEAMS_INSTALL_STATE_INSTALLED',installedTeamCount:1,installedTeams:[{teamId:'t',displayName:'Team',rscGranted:true,installedAtMs:'4'}]}]}),{status:200});}});
+ const me=await client.getMe();
+ assert.equal(headers['x-cursor-client-version'],'0.78.1');
+ assert.match(headers['user-agent'],/Sand\/0\.78\.1/);
+ assert.equal(me.emailIsSynthetic,true);
  const roster=await client.listBots({role:'main',addedTeamAgentsOnly:true});
  assert.deepEqual(body,{includeTeamAgents:true,role:'main',addedTeamAgentsOnly:true});
  assert.equal(roster.bots[0].kind,'1');
  assert.equal(roster.bots[0].role,'main');
+ assert.equal(roster.bots[0].accessOwnerOnly,true);
  assert.equal(roster.bots[0].createdAtMs,'10');
  assert.equal(roster.slackConnections[0].connected,true);
  assert.equal(roster.slackConnections[0].workspaceName,'kept-out');
@@ -128,7 +130,7 @@ test('sendMessage keeps desktop user chat enums and adds only provided reply fie
  await assert.rejects(client.sendMessage({botId:uuid,text:'hello',messageId:'caller-nonce',replyToId:'reply-1',taskId:'task-1',richText:'[]'}),/SEND_REFUSED/);
  assert.equal(sent.source,1);assert.equal(sent.initiator,1);assert.equal(sent.sendSource,1);
  assert.equal(sent.replyToId,'reply-1');assert.equal(sent.taskId,'task-1');assert.equal(sent.richText,'[]');
- assert.equal(sent.isFork,false);assert.equal('machineId' in sent,false);
+ assert.equal(sent.isFork,false);assert.equal('machineId' in sent,false);assert.equal('rendersMcpElicitationForms' in sent,false);
  await assert.rejects(client.sendMessage({botId:uuid,text:'hello',replyToId:''}),/MESSAGE_INVALID/);
 });
 
@@ -155,12 +157,16 @@ test('read methods map 0.75.8 records',async()=>{
  const transcript=await client.listTranscript({botId:uuid,limit:1,generation:4,beforeSeq:'9',unreadBoundaryMs:'3'});
  assert.equal(transcript.entries[0].body.kind,'note');
  assert.equal(transcript.unreadAnchor.newerRows,2);
+ assert.equal(transcript.updatedSeqLocked,false);
  assert.deepEqual(calls.find(call=>call.url.endsWith('/ListGrokBotTranscriptEntries')).body,{agentId:uuid,sessionId:'',limit:1,generation:4,beforeSeq:'9',unreadBoundaryMs:'3'});
  const statuses=await client.listAgentStatuses([uuid]);
  assert.equal(statuses.statuses[0].live.activityKind,'tool');
  assert.equal(statuses.statuses[0].client.unreadCount,2);
+ assert.equal(statuses.statuses[0].client.unreadThreadCount,0);
  assert.equal((await client.getSendStatus({botId:uuid,messageId:'missing',firstSentAgeMs:'12'})).status,'not-found');
+ assert.equal('taskId' in calls.find(call=>call.url.endsWith('/GetGrokBotSendStatus')).body,false);
  assert.equal((await client.listAgentTasks({botId:uuid,includeRecentlyDone:true})).tasks[0].subagentIds[0],'sub');
+ assert.equal((await client.listAgentTasks({botId:uuid})).tasks[0].followed,false);
  assert.equal((await client.listTasks({botId:uuid})).tasks[0].state,'2');
  assert.equal((await client.listSubagents(uuid)).subagents[0].subagentType,'research');
  assert.equal((await client.listAgentTodos(uuid)).todos[0].status,'TODO_STATUS_PENDING');
@@ -187,12 +193,180 @@ test('watch frames new in 0.75.8 stay scoped to the selected bot',async()=>{
  assert.equal(events.find(event=>event.type==='agent.state').data.client.length,0);
  assert.deepEqual(events.find(event=>event.type==='computer.actions').data.actions.map(row=>row.type),['click']);
  assert.equal(events.find(event=>event.type==='box.state').data.state.runState,'running');
+ assert.equal(events.find(event=>event.type==='box.state').data.state.imageTag,null);
+ assert.equal(events.find(event=>event.type==='box.state').data.state.staticSnapshotMatchesPin,false);
  assert.equal(events.find(event=>event.type==='page.title.changed').data.canvasId,'canvas');
+ assert.equal(events.find(event=>event.type==='page.title.changed').data.contentChanged,false);
  assert.ok(!JSON.stringify(events).includes('secret'));
+});
+
+function manageFetch(calls){
+ return async(url,init)=>{
+  const body=JSON.parse(init.body);
+  calls.push({url,body});
+  const path=url.split('/').pop();
+  const roomId=body.agentId||'room-1';
+  const agent={agentId:roomId,id:'server-'+roomId.slice(0,8),name:body.name||'Room',kind:'ROOM',description:body.description||'',memberAgentIds:body.memberAgentIds||[]};
+  const skill={name:body.name||'skill',description:body.description||'',sourcePath:'skills/skill/SKILL.md',sourceUrl:null,content:body.content||'',environments:['dev']};
+  const marketplace={marketplaceId:'17',displayName:'Desk',description:'plugins'};
+  const plugin={pluginId:9,name:'p',displayName:'Plugin',description:'pd',logoUrl:null,ownedByMarketplace:true,installMode:'inline',variableNames:['TOKEN'],isDeprecated:false,mcpConfigJson:null,skills:[skill],mcpServerNames:['srv'],isBotSkills:true,connectorType:'USER',variablesJson:null,hasConfiguredVariables:false};
+  const bodies={
+   ListGrokBotAgents:{agents:[{agentId:uuid,id:'server-agent',name:'Bot',kind:'AGENT'},{agentId:'room-1',id:'server-room',name:'Room',kind:'ROOM'},{agentId:'room-num',id:'server-num',name:'Num',kind:2},{agentId:'room-full',id:'server-full',name:'Full',kind:'GROK_BOT_AGENT_KIND_ROOM'}]},
+   DeleteGrokBotAgent:{},
+   CreateGrokBotRoom:{agent},
+   AddGrokBotRoomPeople:{agent:{...agent,agentId:body.agentId}},
+   RemoveGrokBotRoomPeople:{agent:null},
+   SetGrokBotRoomMembers:{agent:{...agent,memberAgentIds:body.memberAgentIds}},
+   CreateGrokBotAgent:{agent:{agentId:body.agentId,id:'server-bot',name:body.name,kind:'AGENT'},harness:'TEMPORAL'},
+   UpdateGrokBotAgent:{agent:{agentId:'kept-agent',id:body.id,name:body.name||'Kept',kind:'AGENT'}},
+   AddGrokBotAgentSkill:{marketplace,plugins:[plugin],skill},
+   UpdateGrokBotAgentSkill:{marketplace,plugins:[plugin],skill},
+   RemoveGrokBotAgentSkill:{marketplace,plugins:[plugin]},
+  };
+  return new Response(JSON.stringify(bodies[path]??{}),{status:200});
+ };
+}
+
+test('management writes send the 0.75.8 fields and keep destructive calls explicit',async()=>{
+ feature();const calls=[];
+ const client=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:manageFetch(calls)});
+ const room=await client.createRoom({name:'sdk-test-room',memberAgentIds:[uuid],description:'notes',humanMemberUserIds:[7],agentId:'room-created'});
+ assert.equal(room.bot.id,'room-created');assert.equal(room.bot.kind,'ROOM');
+ assert.deepEqual(calls.at(-1).body,{agentId:'room-created',name:'sdk-test-room',description:'notes',memberAgentIds:[uuid],humanMemberUserIds:[7]});
+ assert.ok(calls.at(-1).url.endsWith('/CreateGrokBotRoom'));
+ const created=await client.createBot({name:'New',harness:2,language:'zh',kickstartRequested:false,agentId:'bot-created'});
+ assert.equal(created.bot.id,'bot-created');assert.equal(created.harness,'temporal');
+ assert.equal(calls.at(-1).body.harness,'TEMPORAL');assert.equal(calls.at(-1).body.language,'zh');
+ assert.equal(calls.at(-1).body.description,'');assert.equal(calls.at(-1).body.kickstartRequested,false);
+ assert.equal('createIntent' in calls.at(-1).body,false);
+ assert.ok(calls.at(-1).url.endsWith('/CreateGrokBotAgent'));
+ const updated=await client.updateBot({id:'server-agent',name:'Renamed',description:''});
+ assert.equal(updated.bot.serverId,'server-agent');
+ assert.deepEqual(calls.at(-1).body,{id:'server-agent',name:'Renamed',description:'',partialUpdate:true});
+ assert.ok(calls.at(-1).url.endsWith('/UpdateGrokBotAgent'));
+ await client.updateBot({id:'server-agent',clearAvatar:true});
+ assert.deepEqual(calls.at(-1).body,{id:'server-agent',partialUpdate:true,clearAvatar:{}});
+ await assert.rejects(client.updateBot({id:'server-agent',clearAvatar:true,avatarDataUrl:'data:image/png;base64,a'}),/MESSAGE_INVALID/);
+ await assert.rejects(client.updateBot({id:'server-agent'}),/MESSAGE_INVALID/);
+ const added=await client.addRoomMembers({roomId:'room-1',userIds:[3,4]});
+ assert.equal(added.bot.id,'room-1');
+ assert.deepEqual(calls.at(-1).body,{agentId:'room-1',userIds:[3,4]});
+ assert.ok(calls.at(-1).url.endsWith('/AddGrokBotRoomPeople'));
+ assert.deepEqual(await client.removeRoomMembers({roomId:'room-1',userIds:[3]}),{bot:null});
+ assert.deepEqual(calls.at(-1).body,{agentId:'room-1',userIds:[3]});
+ assert.ok(calls.at(-1).url.endsWith('/RemoveGrokBotRoomPeople'));
+ const replaced=await client.setRoomMembers({roomId:'room-1',memberAgentIds:[]});
+ assert.deepEqual(replaced.bot.memberAgentIds,[]);
+ assert.deepEqual(calls.at(-1).body,{agentId:'room-1',memberAgentIds:[]});
+ assert.ok(calls.at(-1).url.endsWith('/SetGrokBotRoomMembers'));
+ const skill=await client.addAgentSkill({botId:uuid,content:'# Skill',description:''});
+ assert.equal(skill.skill.content,'# Skill');assert.equal(skill.marketplace.marketplaceId,'17');assert.equal(skill.plugins[0].pluginId,'9');
+ assert.deepEqual(calls.at(-1).body,{agentId:uuid,content:'# Skill',description:''});
+ assert.equal('name' in calls.at(-1).body,false);
+ assert.ok(calls.at(-1).url.endsWith('/AddGrokBotAgentSkill'));
+ await client.updateAgentSkill({botId:uuid,name:'Skill',content:'# Next'});
+ assert.deepEqual(calls.at(-1).body,{agentId:uuid,name:'Skill',content:'# Next'});
+ assert.ok(calls.at(-1).url.endsWith('/UpdateGrokBotAgentSkill'));
+ const removed=await client.removeAgentSkill({botId:uuid,name:'Skill'});
+ assert.equal(removed.plugins[0].connectorType,'USER');assert.equal('skill' in removed,false);
+ assert.deepEqual(calls.at(-1).body,{agentId:uuid,name:'Skill'});
+ assert.ok(calls.at(-1).url.endsWith('/RemoveGrokBotAgentSkill'));
+ assert.deepEqual(await client.deleteBot(uuid),{id:uuid});
+ assert.deepEqual(calls.at(-1).body,{id:uuid});
+ assert.ok(calls.at(-1).url.endsWith('/DeleteGrokBotAgent'));
+ const beforeDelete=calls.length;
+ assert.deepEqual(await client.deleteRoom('room-1'),{id:'room-1'});
+ assert.ok(calls[beforeDelete].url.endsWith('/ListGrokBotAgents'));
+ assert.deepEqual(calls.at(-1).body,{id:'room-1'});
+ assert.deepEqual(await client.deleteRoom('room-num'),{id:'room-num'});
+ assert.deepEqual(await client.deleteRoom('room-full'),{id:'room-full'});
+ const refused=calls.length;
+ await assert.rejects(client.deleteRoom(uuid),error=>error instanceof sdk.SDKError&&error.code==='NOT_A_ROOM');
+ assert.equal(calls.length,refused+1);assert.ok(calls.at(-1).url.endsWith('/ListGrokBotAgents'));
+ await assert.rejects(client.deleteRoom('missing-room'),/NOT_A_ROOM/);
+ await assert.rejects(client.addRoomMembers({roomId:'room-1',userIds:[1.5]}),/MESSAGE_INVALID/);
+ await assert.rejects(client.createRoom({name:'',memberAgentIds:[]}),/MESSAGE_INVALID/);
+});
+
+test('0.78.1 additive fields and new reads stay on the confirmed wire shape',async()=>{
+ feature();const calls=[];
+ const client=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async(url,init)=>{
+  const body=JSON.parse(init.body);
+  calls.push({url,body});
+  const path=url.split('/').pop();
+  const bodies={
+   SendGrokBotUserMessage:{delivery:'GROK_BOT_USER_MESSAGE_DELIVERY_ACCEPTED_BOX',dispatched:true},
+   ListGrokBotTranscriptEntries:{generation:1,entries:[],updatedSeqLocked:true},
+   ListGrokBotAgentStatuses:{statuses:[{agentId:uuid,isRunning:false,client:{agentId:uuid,unreadThreadCount:3}}]},
+   GetGrokBotSendStatus:{status:2},
+   ListGrokBotAgentTasks:{tasks:[{id:'t',name:'Name',status:'open',followed:true}]},
+   AddGrokBotAgentSkill:{marketplace:{marketplaceId:'1',displayName:'Desk',description:''},plugins:[{pluginId:'4',name:'p',displayName:'P',description:'',credentialSource:'DELEGATED',delegatedCredential:{delegatorDisplayName:'Ada',delegatorAvatarUrl:null,delegatorIsViewer:true,state:'ACTIVE',attachedAt:'2026-10-29T00:00:00Z'},credentialAllowedActions:['USE_DELEGATED_AUTH'],supportsServiceAccount:true,skills:[]}],skill:{name:'s',description:'',sourcePath:'',content:'',environments:[]}},
+   GetGrokBotAgentCustomMcp:{server:{pluginId:body.pluginId,name:'local',http:{url:'https://mcp.example',headerNames:['Authorization'],hasOauthClientId:true,hasOauthClientSecret:false}}},
+   ListGrokBotAgentAccessInvites:{invites:[{email:'a@example.com',expiresAtMs:'11',lastSharedAtMs:'12',createdAtMs:'13'}],capUsage:{used:1,limit:5}},
+   PreviewGrokBotAgentAccessInvite:{found:true,recipientMatch:'MATCHES',sender:{displayName:'Ada',avatarUrl:null},invites:[{inviteId:'inv',bot:{agentId:uuid,name:'Bot',avatarUrl:null,avatarShape:'cloud',avatarColor:'brown'},role:'USER',state:'OPEN',expiresAtMs:'14'}],truncated:false,otherResourceInviteCount:2,eligibility:{eligible:false,reason:'NO_SUBSCRIPTION',currentTier:'NONE'}},
+  };
+  return new Response(JSON.stringify(bodies[path]??{}),{status:200});
+ }});
+ await client.sendMessage({botId:uuid,text:'hello',rendersMcpElicitationForms:false});
+ assert.equal('rendersMcpElicitationForms' in calls.at(-1).body,false);
+ await client.sendMessage({botId:uuid,text:'hello',rendersMcpElicitationForms:true});
+ assert.equal(calls.at(-1).body.rendersMcpElicitationForms,true);
+ assert.equal(calls.at(-1).body.source,1);
+ await assert.rejects(client.sendMessage({botId:uuid,text:'hello',rendersMcpElicitationForms:'yes'}),/MESSAGE_INVALID/);
+ assert.equal((await client.listTranscript({botId:uuid})).updatedSeqLocked,true);
+ assert.equal((await client.listAgentStatuses([uuid])).statuses[0].client.unreadThreadCount,3);
+ await client.getSendStatus({botId:uuid,messageId:'m',taskId:'task-9'});
+ assert.equal(calls.at(-1).body.taskId,'task-9');
+ await assert.rejects(client.getSendStatus({botId:uuid,messageId:'m',taskId:''}),/MESSAGE_INVALID/);
+ assert.equal((await client.listAgentTasks({botId:uuid})).tasks[0].followed,true);
+ const skill=await client.addAgentSkill({botId:uuid,content:'# Skill'});
+ assert.equal(skill.plugins[0].credentialSource,'DELEGATED');
+ assert.equal(skill.plugins[0].delegatedCredential.attachedAt,'2026-10-29T00:00:00Z');
+ assert.deepEqual(skill.plugins[0].credentialAllowedActions,['USE_DELEGATED_AUTH']);
+ assert.equal(skill.plugins[0].supportsServiceAccount,true);
+ const mcp=await client.getAgentCustomMcp({botId:uuid,pluginId:'42'});
+ assert.equal(calls.at(-1).body.pluginId,'42');
+ assert.ok(calls.at(-1).url.endsWith('/GetGrokBotAgentCustomMcp'));
+ assert.equal(mcp.server.http.url,'https://mcp.example');
+ assert.equal(mcp.server.http.headerNames[0],'Authorization');
+ assert.equal(mcp.server.stdio,null);
+ assert.equal(mcp.server.http.hasOauthClientSecret,false);
+ await assert.rejects(client.getAgentCustomMcp({botId:uuid,pluginId:-1}),/MESSAGE_INVALID/);
+ const invites=await client.listAgentAccessInvites(uuid);
+ assert.deepEqual(calls.at(-1).body,{agentId:uuid});
+ assert.equal(invites.invites[0].email,'a@example.com');
+ assert.deepEqual(invites.capUsage,{used:1,limit:5});
+ const preview=await client.previewAgentAccessInvite('code-1');
+ assert.deepEqual(calls.at(-1).body,{code:'code-1'});
+ assert.equal(preview.found,true);
+ assert.equal(preview.invites[0].bot.agentId,uuid);
+ assert.equal(preview.eligibility.reason,'NO_SUBSCRIPTION');
+ assert.equal(preview.otherResourceInviteCount,2);
+ await assert.rejects(client.previewAgentAccessInvite(''),/MESSAGE_INVALID/);
+ const watched=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async()=>wireResponse([
+  framed({boxState:{snapshot:true,state:{runState:'RUNNING',imageTag:'box',staticSnapshotPath:'/snap',imageGitSha:'abc',staticSnapshotMatchesPin:true,staticSnapshotPin:'pin'}}}),
+  framed({pageTitleChanged:{storeId:'store',title:'Title',contentChanged:true,changedAtMs:'15'}}),
+  framed({},2),
+ ])});
+ const events=await collect(watched.watchBot({botId:uuid,cursor:{generation:1,afterUpdatedSeq:'0'}}));
+ const box=events.find(event=>event.type==='box.state').data.state;
+ assert.equal(box.imageTag,'box');
+ assert.equal(box.staticSnapshotPath,'/snap');
+ assert.equal(box.imageGitSha,'abc');
+ assert.equal(box.staticSnapshotMatchesPin,true);
+ assert.equal(box.staticSnapshotPin,'pin');
+ assert.equal(events.find(event=>event.type==='page.title.changed').data.contentChanged,true);
 });
 
 test('a decoded null resume cursor fails with CURSOR_INVALID before any request',async()=>{
  feature();let calls=0;const client=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async()=>{calls++;throw new Error();}});
  await assert.rejects(collect(client.watchBot({botId:uuid,resumeFrom:Buffer.from('null').toString('base64url')})),error=>error instanceof sdk.SDKError&&error.code==='CURSOR_INVALID');
  assert.equal(calls,0);
+});
+
+test('listSessions treats an omitted sessions field as an empty list',async()=>{
+ feature();const client=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async()=>new Response('{}',{status:200})});
+ assert.deepEqual(await client.listSessions(uuid),{sessions:[]});
+ const bad=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async()=>new Response('{"sessions":{}}',{status:200})});
+ await assert.rejects(bad.listSessions(uuid),/RPC_FAILED/);
 });
