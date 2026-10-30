@@ -140,6 +140,14 @@ function normalizeInviteEligibility(row){
   if(!row||typeof row!=='object'||Array.isArray(row))return null;
   return {eligible:row.eligible===true,reason:wireText(row.reason),currentTier:wireText(row.currentTier)};
 }
+function nonNegativeInt64(value){
+  const text=int64Text(value);
+  return text&&!text.startsWith('-')?text:'0';
+}
+function normalizeAgentFile(row){
+  if(!row||typeof row!=='object'||Array.isArray(row))return null;
+  return {name:asText(row.name),path:asText(row.path),sizeBytes:nonNegativeInt64(row.sizeBytes),contentType:asText(row.contentType),updatedAtMs:msText(row.updatedAtMs),etag:asText(row.etag)};
+}
 function skillWriteResult(data,{requireSkill}){
   if(!Array.isArray(data?.plugins))throw new SDKError('RPC_FAILED');
   const marketplace=normalizeMarketplace(data.marketplace);
@@ -220,14 +228,14 @@ export class GrokBotClient{
     if(beforeSeq!==undefined)body.beforeSeq=uint64(beforeSeq);
     if(unreadBoundaryMs!==undefined)body.unreadBoundaryMs=uint64(unreadBoundaryMs);
     const data=await this.#data('GrokBotService','ListGrokBotTranscriptEntries',body);
-    if(!Array.isArray(data.entries))throw new SDKError('RPC_FAILED');
+    data.entries??=[];if(!Array.isArray(data.entries))throw new SDKError('RPC_FAILED');
     return {generation:generation(data.generation),entries:data.entries.map(normalizeTranscriptEntry),cloudAgentPeerIds:stringList(data.cloudAgentPeerIds),cloudAgentPeerIdsKnown:data.cloudAgentPeerIdsKnown===true,unreadAnchor:normalizeUnreadAnchor(data.unreadAnchor),updatedSeqLocked:data.updatedSeqLocked===true};
   }
 
   async listAgentStatuses(agentIds=[]){
     const ids=botIds(agentIds,{allowEmpty:true});
     const data=await this.#data('GrokBotService','ListGrokBotAgentStatuses',{agentIds:ids});
-    if(!Array.isArray(data.statuses))throw new SDKError('RPC_FAILED');
+    data.statuses??=[];if(!Array.isArray(data.statuses))throw new SDKError('RPC_FAILED');
     return {statuses:objectRows(data.statuses).map(row=>({agentId:asText(row.agentId),isRunning:row.isRunning===true,live:row.live&&typeof row.live==='object'&&!Array.isArray(row.live)?normalizeLiveState(row.live):null,client:row.client&&typeof row.client==='object'&&!Array.isArray(row.client)?normalizeClientState(row.client):null}))};
   }
 
@@ -246,7 +254,7 @@ export class GrokBotClient{
     const body={agentId:botId};
     if(includeRecentlyDone!==undefined)body.includeRecentlyDone=includeRecentlyDone===true;
     const data=await this.#data('GrokBotService','ListGrokBotAgentTasks',body);
-    if(!Array.isArray(data.tasks))throw new SDKError('RPC_FAILED');
+    data.tasks??=[];if(!Array.isArray(data.tasks))throw new SDKError('RPC_FAILED');
     return {tasks:objectRows(data.tasks).map(row=>({id:asText(row.id),name:asText(row.name),description:asText(row.description),status:asText(row.status),updatedAtMs:msText(row.updatedAtMs),unreadEntryId:typeof row.unreadEntryId==='string'?row.unreadEntryId:null,unreadPreview:typeof row.unreadPreview==='string'?row.unreadPreview:null,unreadAtMs:msText(row.unreadAtMs),pinnedAtMs:msText(row.pinnedAtMs),subagentIds:stringList(row.subagentIds),followed:row.followed===true}))};
   }
 
@@ -254,35 +262,48 @@ export class GrokBotClient{
     botKey(botId);
     if(typeof sessionId!=='string'||sessionId.length>256)throw new SDKError('CURSOR_INVALID');
     const data=await this.#data('GrokBotService','ListGrokBotTasks',{agentId:botId,sessionId});
-    if(!Array.isArray(data.tasks))throw new SDKError('RPC_FAILED');
+    data.tasks??=[];if(!Array.isArray(data.tasks))throw new SDKError('RPC_FAILED');
     return {tasks:objectRows(data.tasks).map(row=>({id:asText(row.id),title:asText(row.title),state:wireText(row.state),note:asText(row.note),createdAtMs:msText(row.createdAtMs),doneAtMs:msText(row.doneAtMs),seenDoneAtMs:msText(row.seenDoneAtMs)}))};
   }
 
   async listSubagents(botId){
     botKey(botId);
     const data=await this.#data('GrokBotService','ListGrokBotSubagents',{agentId:botId});
-    if(!Array.isArray(data.subagents))throw new SDKError('RPC_FAILED');
+    data.subagents??=[];if(!Array.isArray(data.subagents))throw new SDKError('RPC_FAILED');
     return {subagents:objectRows(data.subagents).map(row=>({subagentId:asText(row.subagentId),subagentType:asText(row.subagentType),title:asText(row.title),startedAtMs:msText(row.startedAtMs),freshUntilMs:msText(row.freshUntilMs)}))};
   }
 
   async listAgentTodos(botId){
     botKey(botId);
     const data=await this.#data('GrokBotService','ListGrokBotAgentTodos',{agentId:botId});
-    if(!Array.isArray(data.todos))throw new SDKError('RPC_FAILED');
+    data.todos??=[];if(!Array.isArray(data.todos))throw new SDKError('RPC_FAILED');
     return {todos:objectRows(data.todos).map(row=>({id:asText(row.id),content:asText(row.content),status:wireText(row.status),createdAtMs:msText(row.createdAt),updatedAtMs:msText(row.updatedAt),dependencies:stringList(row.dependencies)}))};
   }
 
   async listAgentSkills(botId){
     botKey(botId);
     const data=await this.#data('GrokBotService','ListGrokBotAgentSkills',{agentId:botId});
-    if(!Array.isArray(data.skills))throw new SDKError('RPC_FAILED');
+    data.skills??=[];if(!Array.isArray(data.skills))throw new SDKError('RPC_FAILED');
     return {skills:objectRows(data.skills).map(row=>({id:asText(row.id),name:asText(row.name),description:asText(row.description),body:asText(row.body),source:asText(row.source)}))};
+  }
+
+  /**
+   * Read-only. Lists files on one agent.
+   * `pageToken` is sent only when provided. An omitted `files` field is an empty list.
+   */
+  async listAgentFiles({botId,pageToken}={}){
+    const id=botKey(botId);
+    const body={agentId:id};
+    if(pageToken!==undefined){if(typeof pageToken!=='string')throw new SDKError('MESSAGE_INVALID');body.pageToken=pageToken;}
+    const data=await this.#data('GrokBotService','ListGrokBotAgentFiles',body);
+    if(data.files!==undefined&&!Array.isArray(data.files))throw new SDKError('RPC_FAILED');
+    return {files:objectRows(data.files??[]).map(normalizeAgentFile).filter(Boolean),nextPageToken:asText(data.nextPageToken),totalBytes:nonNegativeInt64(data.totalBytes),canEdit:data.canEdit===true};
   }
 
   async listDeletedAgentIds(agentIds=[]){
     const ids=botIds(agentIds,{allowEmpty:true});
     const data=await this.#data('GrokBotService','ListDeletedGrokBotAgentIds',{agentIds:ids});
-    if(!Array.isArray(data.agentIds))throw new SDKError('RPC_FAILED');
+    data.agentIds??=[];if(!Array.isArray(data.agentIds))throw new SDKError('RPC_FAILED');
     return {agentIds:stringList(data.agentIds)};
   }
 
@@ -310,7 +331,7 @@ export class GrokBotClient{
   async listAgentAccessInvites(botId){
     const id=botKey(botId);
     const data=await this.#data('GrokBotService','ListGrokBotAgentAccessInvites',{agentId:id});
-    if(!Array.isArray(data.invites))throw new SDKError('RPC_FAILED');
+    data.invites??=[];if(!Array.isArray(data.invites))throw new SDKError('RPC_FAILED');
     return {invites:objectRows(data.invites).map(normalizeAccessInvite),capUsage:normalizeCapUsage(data.capUsage)};
   }
 
@@ -402,6 +423,20 @@ export class GrokBotClient{
     const bot=returnedBot(data.agent);
     if(bot.id!==id)throw new SDKError('RPC_FAILED');
     return {bot,harness:mappedEnum(data.harness,HARNESS_OUT)};
+  }
+
+  /**
+   * Copies one bot. `botId` is sent as `sourceAgentId`.
+   * `newBotId` is the new bot id (`agentId`). It defaults to a new UUID, the same pattern as `createRoom`.
+   * Returns `{bot}` only when the server echoes that id.
+   */
+  async duplicateBot({botId,newBotId}={}){
+    const source=botKey(botId);
+    const id=newBotId===undefined?randomUUID():botKey(newBotId);
+    const data=await this.#data('GrokBotService','DuplicateGrokBotAgent',{sourceAgentId:source,agentId:id});
+    const bot=returnedBot(data.agent);
+    if(bot.id!==id)throw new SDKError('RPC_FAILED');
+    return {bot};
   }
 
   /**

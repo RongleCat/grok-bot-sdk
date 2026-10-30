@@ -145,6 +145,7 @@ HTTP 失败，或响应里缺少预期的数组或对象时，这些方法抛出
 | `getAgentCustomMcp({ botId, pluginId })` | `GetGrokBotAgentCustomMcp`。`pluginId` 是非负 int64，以十进制字符串发送。返回 `{ server }`，带 `http` 和 `stdio`。服务端只会设置其中一种传输。这次读取返回 header 名称和 `hasOauthClientId` / `hasOauthClientSecret`，不返回 header 的值，也不返回密钥。响应没有 server 时抛出 `RPC_FAILED`。 |
 | `listAgentAccessInvites(botId)` | `ListGrokBotAgentAccessInvites`。返回 `{ invites, capUsage }`。 |
 | `previewAgentAccessInvite(code)` | `PreviewGrokBotAgentAccessInvite`。返回 proto 字段：`found`、`recipientMatch`、`sender`、`invites`、`truncated`、`otherResourceInviteCount`、`eligibility`。空的 code 抛出 `MESSAGE_INVALID`。 |
+| `listAgentFiles({ botId, pageToken? })` | `ListGrokBotAgentFiles`。返回 `{ files, nextPageToken, totalBytes, canEdit }`。每个文件有 `name`、`path`、`sizeBytes`、`contentType`、`updatedAtMs`、`etag`。`sizeBytes` 和 `totalBytes` 是非负 int64 的十进制字符串。只有传入 `pageToken` 时才发送它。`pageToken` 不是字符串时抛出 `MESSAGE_INVALID`。响应省略 `files` 时当作空列表。`files` 不是数组时抛出 `RPC_FAILED`。 |
 
 ## 管理类写接口
 
@@ -161,6 +162,7 @@ HTTP 失败，或响应里缺少预期的数组或对象时，这些方法抛出
 | `removeRoomMembers({roomId, userIds})` | `RemoveGrokBotRoomPeople`。响应没有 agent 时返回 `{bot: null}`。 | 不可撤销 |
 | `setRoomMembers({roomId, memberAgentIds})` | `SetGrokBotRoomMembers`。替换 Bot 成员。空数组会原样发送。 | 不可撤销 |
 | `createBot({name, ...})` | `CreateGrokBotAgent`。总会发送 `agentId`、`name`、`description`、`title`、`avatarShape`、`avatarColor`（`description`、`title` 和头像字符串默认 `''`）。可选：`legacyAgentId`、`avatarDataUrl`、`harness`（`UNSPECIFIED`、`BOX`、`TEMPORAL`，或 `0`/`1`/`2`）、`kickstartRequested`、`introductionSuppressed`、`purpose`、`origin`、`language`、`createIntent`、`createCaller`、`createdAutomatically`。返回 `{bot, harness}`。 | 否 |
+| `duplicateBot({botId, newBotId?})` | `DuplicateGrokBotAgent`，请求体 `{sourceAgentId: botId, agentId}`。`newBotId` 默认是新的 UUID，作为这个 `agentId`，和 `createRoom` 一样。只有服务端回显同一个 id 才返回 `{bot}`。0.78.1 桌面客户端只有这个 RPC 的定义，没有调用它。 | 否 |
 | `updateBot({id, name?, description?, title?, avatarShape?, avatarColor?, avatarDataUrl?, clearAvatar?})` | `UpdateGrokBotAgent`。`id` 是 `Bot.serverId`（`GrokBotAgent.id`），不是 `Bot.id`。`partialUpdate` 总是 `true`。没传的文本字段不会发送。`clearAvatar: true` 发送 `clearAvatar: {}`。它和 `avatarDataUrl` 同时出现会抛出 `MESSAGE_INVALID`。至少要有一项修改。 | 否 |
 | `addAgentSkill({botId, content, name?, description?})` | `AddGrokBotAgentSkill`。`content` 可以是空字符串。返回 `{marketplace, plugins, skill}`。 | 否 |
 | `updateAgentSkill({botId, name, content, description?})` | `UpdateGrokBotAgentSkill`。 | 否 |

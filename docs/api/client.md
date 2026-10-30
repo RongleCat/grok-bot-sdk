@@ -145,6 +145,7 @@ Each method throws `RPC_FAILED` when the HTTP call fails or the expected array o
 | `getAgentCustomMcp({ botId, pluginId })` | `GetGrokBotAgentCustomMcp`. `pluginId` is a non-negative int64, sent as a decimal string. Returns `{ server }` with `http` and `stdio`. Only one transport is set by the server. The read returns header names and `hasOauthClientId` / `hasOauthClientSecret`, not header values or secrets. A missing server throws `RPC_FAILED`. |
 | `listAgentAccessInvites(botId)` | `ListGrokBotAgentAccessInvites`. Returns `{ invites, capUsage }`. |
 | `previewAgentAccessInvite(code)` | `PreviewGrokBotAgentAccessInvite`. Returns the proto fields: `found`, `recipientMatch`, `sender`, `invites`, `truncated`, `otherResourceInviteCount`, and `eligibility`. An empty code throws `MESSAGE_INVALID`. |
+| `listAgentFiles({ botId, pageToken? })` | `ListGrokBotAgentFiles`. Returns `{ files, nextPageToken, totalBytes, canEdit }`. Each file is `name`, `path`, `sizeBytes`, `contentType`, `updatedAtMs`, and `etag`. `sizeBytes` and `totalBytes` are non-negative int64 decimal strings. `pageToken` is sent only when provided. A non-string `pageToken` throws `MESSAGE_INVALID`. An omitted `files` field is an empty list. A non-array `files` field throws `RPC_FAILED`. |
 
 ## Management writes
 
@@ -161,6 +162,7 @@ These call `GrokBotService` write RPCs. A failed HTTP call, or a response that i
 | `removeRoomMembers({roomId, userIds})` | `RemoveGrokBotRoomPeople`. Returns `{bot: null}` when the response has no agent. | Irreversible |
 | `setRoomMembers({roomId, memberAgentIds})` | `SetGrokBotRoomMembers`. Replaces bot members. An empty array is sent as an empty array. | Irreversible |
 | `createBot({name, ...})` | `CreateGrokBotAgent`. Always sends `agentId`, `name`, `description`, `title`, `avatarShape`, and `avatarColor` (`description`, `title`, and avatar strings default to `''`). Optional: `legacyAgentId`, `avatarDataUrl`, `harness` (`UNSPECIFIED`, `BOX`, `TEMPORAL`, or `0`/`1`/`2`), `kickstartRequested`, `introductionSuppressed`, `purpose`, `origin`, `language`, `createIntent`, `createCaller`, `createdAutomatically`. Returns `{bot, harness}`. | No |
+| `duplicateBot({botId, newBotId?})` | `DuplicateGrokBotAgent` with `{sourceAgentId: botId, agentId}`. `newBotId` defaults to a new UUID and is that `agentId`, the same pattern as `createRoom`. Returns `{bot}` only when the server echoes the same id. The 0.78.1 desktop client defines this RPC and does not call it. | No |
 | `updateBot({id, name?, description?, title?, avatarShape?, avatarColor?, avatarDataUrl?, clearAvatar?})` | `UpdateGrokBotAgent`. `id` is `Bot.serverId` (`GrokBotAgent.id`), not `Bot.id`. `partialUpdate` is always `true`. Omitted text fields are not sent. `clearAvatar: true` sends `clearAvatar: {}`. Combining it with `avatarDataUrl` throws `MESSAGE_INVALID`. At least one change is required. | No |
 | `addAgentSkill({botId, content, name?, description?})` | `AddGrokBotAgentSkill`. `content` may be empty. Returns `{marketplace, plugins, skill}`. | No |
 | `updateAgentSkill({botId, name, content, description?})` | `UpdateGrokBotAgentSkill`. | No |

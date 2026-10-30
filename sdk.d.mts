@@ -171,6 +171,15 @@ export interface AgentSkill {
   body: string;
   source: string;
 }
+/** One `GrokBotAgentFile`. `sizeBytes` is a non-negative int64 decimal string. */
+export interface AgentFile {
+  name: string;
+  path: string;
+  sizeBytes: string;
+  contentType: string;
+  updatedAtMs: string | null;
+  etag: string;
+}
 export interface PluginSkill {
   name: string;
   description: string;
@@ -436,6 +445,8 @@ export class GrokBotClient {
   listSubagents(botId: string): Promise<{ subagents: RunningSubagent[] }>;
   listAgentTodos(botId: string): Promise<{ todos: AgentTodo[] }>;
   listAgentSkills(botId: string): Promise<{ skills: AgentSkill[] }>;
+  /** Read-only file list. `pageToken` is sent only when provided. `totalBytes` is a non-negative int64 decimal string. */
+  listAgentFiles(options: { botId: string; pageToken?: string }): Promise<{ files: AgentFile[]; nextPageToken: string; totalBytes: string; canEdit: boolean }>;
   listDeletedAgentIds(agentIds?: string[]): Promise<{ agentIds: string[] }>;
   getRuntimeCapabilities(): Promise<RuntimeCapabilities>;
   getSandBoxRunState(): Promise<SandBoxRunState>;
@@ -454,6 +465,11 @@ export class GrokBotClient {
   /** Irreversible. Replaces the room's bot members, including with an empty list. */
   setRoomMembers(options: { roomId: string; memberAgentIds: string[] }): Promise<{ bot: Bot }>;
   createBot(options: CreateBotOptions): Promise<{ bot: Bot; harness: string }>;
+  /**
+   * Copies one bot via `DuplicateGrokBotAgent`.
+   * `botId` is `sourceAgentId`. `newBotId` is the new bot id and defaults to a UUID.
+   */
+  duplicateBot(options: { botId: string; newBotId?: string }): Promise<{ bot: Bot }>;
   /** Updates name, description, title, or avatar. `id` is `Bot.serverId`. `partialUpdate` is always true. */
   updateBot(options: UpdateBotOptions): Promise<{ bot: Bot }>;
   addAgentSkill(options: { botId: string; content: string; name?: string; description?: string }): Promise<SkillWriteResult>;

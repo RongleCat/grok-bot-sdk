@@ -26,6 +26,12 @@ Management writes for bots and rooms:
 - No `restoreBot`. The 0.78.1 proto has no restore RPC for a deleted agent.
 - `listSessions` returns `{ sessions: [] }` when the server omits an empty `sessions` field, instead of throwing `RPC_FAILED`.
 
+Copy and file reads:
+
+- `duplicateBot({ botId, newBotId? })` calls `DuplicateGrokBotAgent`. `botId` is sent as `sourceAgentId`. `newBotId` is the new bot id (`agentId`) and defaults to a UUID, the same pattern as `createRoom`. Returns `{ bot }` only when the server echoes that id. The 0.78.1 desktop client defines this RPC and does not call it.
+- `listAgentFiles({ botId, pageToken? })` calls `ListGrokBotAgentFiles`. Returns `{ files, nextPageToken, totalBytes, canEdit }`. Each file is a `GrokBotAgentFile` (`name`, `path`, `sizeBytes`, `contentType`, `updatedAtMs`, `etag`). `pageToken` is sent only when provided. An omitted `files` field is an empty list.
+- List reads (`listTranscript`, `listAgentSkills`, `listAgentStatuses`, tasks, subagents, todos, deleted ids, access invites) return an empty list when the server omits an empty repeated field, instead of throwing `RPC_FAILED`.
+
 ## 0.75.8
 
 Protocol surface matched to the Grok Bot 0.75.8 desktop client. The package stays ESM, with no runtime dependencies.

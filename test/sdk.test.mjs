@@ -358,6 +358,51 @@ test('0.78.1 additive fields and new reads stay on the confirmed wire shape',asy
  assert.equal(events.find(event=>event.type==='page.title.changed').data.contentChanged,true);
 });
 
+test('duplicateBot sends a client agent id and listAgentFiles maps GrokBotAgentFile',async()=>{
+ feature();const calls=[];
+ const client=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async(url,init)=>{
+  const body=JSON.parse(init.body);
+  calls.push({url,body});
+  const path=url.split('/').pop();
+  if(path==='DuplicateGrokBotAgent')return new Response(JSON.stringify({agent:{agentId:body.agentId,id:'server-copy',name:'Copy',kind:'AGENT',description:'kept',title:'Title'}}),{status:200});
+  if(path==='ListGrokBotAgentFiles'){
+   if(body.pageToken==='bad-shape')return new Response(JSON.stringify({files:{name:'nope'}}),{status:200});
+   if(body.pageToken==='empty')return new Response(JSON.stringify({}),{status:200});
+   return new Response(JSON.stringify({files:[{name:'a.md',path:'/a.md',sizeBytes:12,contentType:'text/markdown',updatedAtMs:'20',etag:'abc'},null],nextPageToken:'next',totalBytes:'12',canEdit:true}),{status:200});
+  }
+  return new Response('{}',{status:200});
+ }});
+ const copied=await client.duplicateBot({botId:uuid});
+ assert.match(calls.at(-1).body.agentId,/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+ assert.deepEqual({source:calls.at(-1).body.sourceAgentId,echo:copied.bot.id},{source:uuid,echo:calls.at(-1).body.agentId});
+ assert.equal(copied.bot.serverId,'server-copy');
+ assert.equal(copied.bot.name,'Copy');
+ assert.equal(copied.bot.description,'kept');
+ assert.ok(calls.at(-1).url.endsWith('/DuplicateGrokBotAgent'));
+ const named=await client.duplicateBot({botId:uuid,newBotId:'copy-bot'});
+ assert.deepEqual(calls.at(-1).body,{sourceAgentId:uuid,agentId:'copy-bot'});
+ assert.equal(named.bot.id,'copy-bot');
+ assert.equal(named.bot.title,'Title');
+ const files=await client.listAgentFiles({botId:uuid,pageToken:'p'});
+ assert.deepEqual(calls.at(-1).body,{agentId:uuid,pageToken:'p'});
+ assert.ok(calls.at(-1).url.endsWith('/ListGrokBotAgentFiles'));
+ assert.equal(files.files.length,1);
+ assert.deepEqual(files.files[0],{name:'a.md',path:'/a.md',sizeBytes:'12',contentType:'text/markdown',updatedAtMs:'20',etag:'abc'});
+ assert.equal(files.nextPageToken,'next');
+ assert.equal(files.totalBytes,'12');
+ assert.equal(files.canEdit,true);
+ await client.listAgentFiles({botId:uuid});
+ assert.equal('pageToken' in calls.at(-1).body,false);
+ const empty=await client.listAgentFiles({botId:uuid,pageToken:'empty'});
+ assert.deepEqual(empty,{files:[],nextPageToken:'',totalBytes:'0',canEdit:false});
+ await assert.rejects(client.listAgentFiles({botId:uuid,pageToken:'bad-shape'}),error=>error instanceof sdk.SDKError&&error.code==='RPC_FAILED');
+ await assert.rejects(client.listAgentFiles({botId:uuid,pageToken:1}),/MESSAGE_INVALID/);
+ await assert.rejects(client.duplicateBot({botId:''}),/BOT_ID_REQUIRED/);
+ await assert.rejects(client.duplicateBot({botId:uuid,newBotId:''}),/BOT_ID_REQUIRED/);
+ const mismatch=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async()=>new Response(JSON.stringify({agent:{agentId:'other-id',name:'x'}}),{status:200})});
+ await assert.rejects(mismatch.duplicateBot({botId:uuid,newBotId:'copy-bot'}),error=>error instanceof sdk.SDKError&&error.code==='RPC_FAILED');
+});
+
 test('a decoded null resume cursor fails with CURSOR_INVALID before any request',async()=>{
  feature();let calls=0;const client=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async()=>{calls++;throw new Error();}});
  await assert.rejects(collect(client.watchBot({botId:uuid,resumeFrom:Buffer.from('null').toString('base64url')})),error=>error instanceof sdk.SDKError&&error.code==='CURSOR_INVALID');
@@ -369,4 +414,11 @@ test('listSessions treats an omitted sessions field as an empty list',async()=>{
  assert.deepEqual(await client.listSessions(uuid),{sessions:[]});
  const bad=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async()=>new Response('{"sessions":{}}',{status:200})});
  await assert.rejects(bad.listSessions(uuid),/RPC_FAILED/);
+});
+
+test('list reads treat omitted repeated fields as empty lists',async()=>{
+ feature();const client=new sdk.GrokBotClient({accessToken:'fixture',fetchImpl:async()=>new Response('{}',{status:200})});
+ assert.deepEqual((await client.listTranscript({botId:uuid})).entries,[]);
+ assert.deepEqual((await client.listAgentSkills(uuid)).skills,[]);
+ assert.deepEqual((await client.listAgentStatuses([uuid])).statuses,[]);
 });
